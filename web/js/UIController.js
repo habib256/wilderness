@@ -87,8 +87,121 @@ class UIController {
             console.log(`🌫️ Qualité des ombres: ${quality}`);
         });
 
-        // Douceur des ombres supprimée - valeur fixe PCF 3.0
+        // Gestion de la génération de depth map
+        this.initDepthMapControls();
 
+    }
+
+    /**
+     * Initialise les contrôles de génération de depth map
+     */
+    initDepthMapControls() {
+        const generateBtn = document.getElementById('generateDepthMap');
+        const downloadBtn = document.getElementById('downloadDepthMap');
+        const closeBtn = document.getElementById('closeDepthMap');
+        const previewDiv = document.getElementById('depthMapPreview');
+        const canvas = document.getElementById('depthMapCanvas');
+
+        // Bouton de génération
+        generateBtn.addEventListener('click', async () => {
+            try {
+                generateBtn.disabled = true;
+                generateBtn.textContent = '⏳ Génération...';
+                
+                console.log('📊 Début de génération de depth map...');
+                
+                // Génère la depth map
+                const depthMapResult = this.terrainRenderer.generateDepthMap(512, 512);
+                
+                if (depthMapResult) {
+                    // Affiche la preview
+                    this.displayDepthMapPreview(depthMapResult);
+                    console.log('✅ Depth map générée avec succès');
+                } else {
+                    console.error('❌ Échec de la génération de depth map');
+                    alert('Erreur lors de la génération de la depth map');
+                }
+                
+            } catch (error) {
+                console.error('❌ Erreur lors de la génération:', error);
+                alert('Erreur lors de la génération de la depth map');
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.textContent = '📊 Générer Depth Map';
+            }
+        });
+
+        // Bouton de téléchargement
+        downloadBtn.addEventListener('click', () => {
+            this.downloadDepthMap();
+        });
+
+        // Bouton de fermeture
+        closeBtn.addEventListener('click', () => {
+            previewDiv.style.display = 'none';
+        });
+    }
+
+    /**
+     * Affiche la preview de la depth map
+     * @param {Object} depthMapResult - Résultat de la génération
+     */
+    displayDepthMapPreview(depthMapResult) {
+        const previewDiv = document.getElementById('depthMapPreview');
+        const canvas = document.getElementById('depthMapCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Configure la taille du canvas de preview
+        canvas.width = 256;
+        canvas.height = 256;
+
+        // Dessine l'image de la depth map
+        ctx.putImageData(depthMapResult.depthImage, 0, 0);
+
+        // Affiche la preview
+        previewDiv.style.display = 'block';
+
+        // Stocke les données pour le téléchargement
+        this.currentDepthMapData = depthMapResult;
+
+        console.log(`📊 Preview affichée: ${depthMapResult.width}x${depthMapResult.height}`);
+    }
+
+    /**
+     * Télécharge la depth map
+     */
+    downloadDepthMap() {
+        if (!this.currentDepthMapData) {
+            console.error('❌ Aucune depth map à télécharger');
+            return;
+        }
+
+        try {
+            // Crée un canvas temporaire pour l'export
+            const canvas = document.createElement('canvas');
+            canvas.width = this.currentDepthMapData.width;
+            canvas.height = this.currentDepthMapData.height;
+            const ctx = canvas.getContext('2d');
+
+            // Dessine l'image complète
+            ctx.putImageData(this.currentDepthMapData.depthImage, 0, 0);
+
+            // Crée le lien de téléchargement
+            const link = document.createElement('a');
+            link.download = `depth_map_${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+
+            // Déclenche le téléchargement
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            console.log('💾 Depth map téléchargée');
+
+        } catch (error) {
+            console.error('❌ Erreur lors du téléchargement:', error);
+            alert('Erreur lors du téléchargement de la depth map');
+        }
     }
 
     /**

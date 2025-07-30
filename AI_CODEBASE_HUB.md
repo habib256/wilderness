@@ -6,6 +6,8 @@
 
 ---
 
+Je lance moi même le serveur avec Cursor AI Live Server
+
 ## 🏗️ Architecture Générale
 
 ### Vue d'Ensemble

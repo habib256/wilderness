@@ -1108,6 +1108,204 @@ class TerrainRenderer {
     }
     
     /**
+     * Génère une depth map basée sur la vue actuelle de la caméra
+     * @param {number} width - Largeur de la depth map (défaut: 512)
+     * @param {number} height - Hauteur de la depth map (défaut: 512)
+     * @returns {Object} - Objet contenant la depth map et les métadonnées
+     */
+    generateDepthMap(width = 512, height = 512) {
+        if (!this.renderer || !this.scene || !this.camera) {
+            console.error('❌ Impossible de générer la depth map: renderer, scene ou camera non initialisés');
+            return null;
+        }
+
+        console.log(`📊 Génération de depth map ${width}x${height}...`);
+
+        // Sauvegarde les paramètres actuels du renderer
+        const originalSize = this.renderer.getSize(new THREE.Vector2());
+        const originalPixelRatio = this.renderer.getPixelRatio();
+
+        try {
+            // Configure le renderer pour la capture
+            this.renderer.setSize(width, height);
+            this.renderer.setPixelRatio(1); // Évite l'upscaling
+
+            // Crée un render target avec texture de profondeur
+            const renderTarget = new THREE.WebGLRenderTarget(width, height, {
+                minFilter: THREE.NearestFilter,
+                magFilter: THREE.NearestFilter,
+                format: THREE.RGBAFormat,
+                type: THREE.FloatType,
+                depthTexture: new THREE.DepthTexture()
+            });
+
+            // Active le rendu de la depth map
+            this.renderer.setRenderTarget(renderTarget);
+            
+            // Rendu de la scène avec les matériaux originaux
+            this.renderer.render(this.scene, this.camera);
+
+            // Crée un shader de post-processing pour lire la texture de profondeur
+            const postProcessShader = {
+                vertexShader: `
+                    varying vec2 vUv;
+                    void main() {
+                        vUv = uv;
+                        gl_Position = vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform sampler2D depthTexture;
+                    uniform float near;
+                    uniform float far;
+                    varying vec2 vUv;
+                    
+                    void main() {
+                        // Inverse les coordonnées Y pour corriger l'orientation
+                        vec2 correctedUv = vec2(vUv.x, 1.0 - vUv.y);
+                        
+                        // Lit la valeur de profondeur depuis la texture
+                        float depth = texture2D(depthTexture, correctedUv).r;
+                        
+                        // Convertit la profondeur normalisée en distance linéaire
+                        float linearDepth = (2.0 * near * far) / (far + near - depth * (far - near));
+                        
+                        // Normalise entre 0 et 1
+                        float normalizedDepth = (linearDepth - near) / (far - near);
+                        normalizedDepth = clamp(normalizedDepth, 0.0, 1.0);
+                        
+                        // Applique une transformation pour améliorer le contraste
+                        float enhancedDepth = pow(normalizedDepth, 0.3);
+                        
+                        // Inverse pour que les objets proches soient blancs
+                        float invertedDepth = 1.0 - enhancedDepth;
+                        
+                        gl_FragColor = vec4(invertedDepth, invertedDepth, invertedDepth, 1.0);
+                    }
+                `
+            };
+
+            // Crée un matériau de post-processing
+            const postProcessMaterial = new THREE.ShaderMaterial({
+                vertexShader: postProcessShader.vertexShader,
+                fragmentShader: postProcessShader.fragmentShader,
+                uniforms: {
+                    depthTexture: { value: renderTarget.depthTexture },
+                    near: { value: this.camera.near },
+                    far: { value: this.camera.far }
+                }
+            });
+
+            // Crée un plan pour le post-processing
+            const postProcessPlane = new THREE.PlaneGeometry(2, 2);
+            const postProcessMesh = new THREE.Mesh(postProcessPlane, postProcessMaterial);
+
+            // Crée un render target pour le résultat final
+            const finalRenderTarget = new THREE.WebGLRenderTarget(width, height, {
+                minFilter: THREE.NearestFilter,
+                magFilter: THREE.NearestFilter,
+                format: THREE.RGBAFormat,
+                type: THREE.FloatType
+            });
+
+            // Rendu du post-processing
+            this.renderer.setRenderTarget(finalRenderTarget);
+            this.renderer.render(postProcessMesh, new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1));
+
+            // Récupère les données de profondeur
+            const depthData = new Float32Array(width * height * 4);
+            this.renderer.readRenderTargetPixels(finalRenderTarget, 0, 0, width, height, depthData);
+
+            // Convertit les données de profondeur en image
+            const depthImage = this.convertDepthToImage(depthData, width, height);
+
+            // Récupère les métadonnées de la caméra
+            const cameraInfo = {
+                position: this.camera.position.clone(),
+                rotation: this.camera.rotation.clone(),
+                fov: this.camera.fov,
+                aspect: this.camera.aspect,
+                near: this.camera.near,
+                far: this.camera.far
+            };
+
+            // Restaure les paramètres originaux
+            this.renderer.setRenderTarget(null);
+            this.renderer.setSize(originalSize.x, originalSize.y);
+            this.renderer.setPixelRatio(originalPixelRatio);
+
+            // Nettoie les ressources
+            renderTarget.dispose();
+            finalRenderTarget.dispose();
+            postProcessMaterial.dispose();
+            postProcessPlane.dispose();
+
+            console.log(`✅ Depth map générée: ${width}x${height}`);
+            
+            return {
+                depthData: depthData,
+                depthImage: depthImage,
+                width: width,
+                height: height,
+                cameraInfo: cameraInfo,
+                timestamp: Date.now()
+            };
+
+        } catch (error) {
+            console.error('❌ Erreur lors de la génération de la depth map:', error);
+            
+            // Restaure les paramètres en cas d'erreur
+            this.renderer.setRenderTarget(null);
+            this.renderer.setSize(originalSize.x, originalSize.y);
+            this.renderer.setPixelRatio(originalPixelRatio);
+            
+            return null;
+        }
+    }
+
+    /**
+     * Convertit les données de profondeur en image visible
+     * @param {Float32Array} depthData - Données de profondeur RGBA
+     * @param {number} width - Largeur
+     * @param {number} height - Hauteur
+     * @returns {ImageData} - Image convertie
+     */
+    convertDepthToImage(depthData, width, height) {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.createImageData(width, height);
+        const data = imageData.data;
+
+        // Les données sont déjà traitées par le shader (0-1)
+        // Le shader inverse déjà la profondeur (blanc = proche, noir = lointain)
+        
+        for (let i = 0; i < depthData.length; i += 4) {
+            const pixelIndex = i;
+            const depth = depthData[i]; // Canal R (déjà traité par le shader)
+            
+            if (depth >= 0 && depth <= 1) {
+                // Convertit directement en niveaux de gris
+                const intensity = Math.floor(depth * 255);
+                
+                data[pixelIndex] = intensity;     // R
+                data[pixelIndex + 1] = intensity; // G
+                data[pixelIndex + 2] = intensity; // B
+                data[pixelIndex + 3] = 255;       // A
+            } else {
+                // Pixels sans profondeur (fond) en noir
+                data[pixelIndex] = 0;     // R
+                data[pixelIndex + 1] = 0; // G
+                data[pixelIndex + 2] = 0; // B
+                data[pixelIndex + 3] = 255; // A
+            }
+        }
+
+        return imageData;
+    }
+
+    /**
      * Arrête l'animation
      */
     dispose() {

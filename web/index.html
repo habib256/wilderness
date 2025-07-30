@@ -99,6 +99,22 @@
                     </select>
                 </div>
                 
+                <!-- Bouton de génération de depth map -->
+                <div class="control-row">
+                    <button id="generateDepthMap" class="depth-map-btn">
+                        📊 Générer Depth Map
+                    </button>
+                </div>
+                
+                <!-- Affichage de la depth map -->
+                <div id="depthMapPreview" class="depth-map-preview" style="display: none;">
+                    <h4>Depth Map Générée</h4>
+                    <canvas id="depthMapCanvas" width="256" height="256"></canvas>
+                    <div class="depth-map-actions">
+                        <button id="downloadDepthMap" class="download-btn">💾 Télécharger</button>
+                        <button id="closeDepthMap" class="close-btn">✕ Fermer</button>
+                    </div>
+                </div>
 
 
             </div>

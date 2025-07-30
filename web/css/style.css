@@ -154,6 +154,89 @@ body {
     font-weight: bold;
 }
 
+/* Bouton de génération de depth map */
+.depth-map-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9em;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.depth-map-btn:hover {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.depth-map-btn:active {
+    transform: translateY(0);
+}
+
+/* Preview de la depth map */
+.depth-map-preview {
+    margin-top: 15px;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.depth-map-preview h4 {
+    margin-bottom: 10px;
+    color: #81C784;
+    font-size: 0.9em;
+}
+
+#depthMapCanvas {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: #000;
+    margin-bottom: 10px;
+}
+
+.depth-map-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.download-btn, .close-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8em;
+    transition: all 0.3s ease;
+}
+
+.download-btn {
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    color: white;
+}
+
+.download-btn:hover {
+    background: linear-gradient(135deg, #45a049 0%, #4CAF50 100%);
+    transform: translateY(-1px);
+}
+
+.close-btn {
+    background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+    color: white;
+}
+
+.close-btn:hover {
+    background: linear-gradient(135deg, #d32f2f 0%, #f44336 100%);
+    transform: translateY(-1px);
+}
+
 
 
 /* Écran de chargement */
