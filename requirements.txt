@@ -1,0 +1,24 @@
+# Génération procédurale de terrain
+numpy>=1.21.0
+scipy>=1.7.0
+Pillow>=8.3.0
+
+# Extraction terrain réel
+requests>=2.28.0
+rasterio>=1.3.0
+
+# API web
+Flask>=2.0.0
+flask-cors>=3.0.0
+
+# Tests et benchmarks
+pytest>=6.2.0
+pytest-benchmark>=4.0.0
+pytest-cov>=4.1.0
+
+# Documentation
+sphinx>=4.0.0
+sphinx-rtd-theme>=1.0.0
+
+# Godot integration (optionnel)
+godot-parser>=0.1.0 

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wilderness Terrain Viewer 3D</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.0.4/pako.min.js"></script>
+</head>
+<body>
+    <div id="loading" class="loading">
+        <div class="loading-spinner"></div>
+        <p>Chargement des terrains...</p>
+    </div>
+
+    <div id="container">
+        <!-- Rendu 3D -->
+        <canvas id="canvas3d" style="display: block; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1;"></canvas>
+        
+        <!-- Interface utilisateur -->
+        <div class="ui-panel">
+
+            
+            <!-- Sélecteur de terrain -->
+            <div class="terrain-selector">
+                <h3>Terrain</h3>
+                <div class="terrain-buttons">
+                    <button class="terrain-btn" data-terrain="montagneux">
+                        ⛰️ Montagneux
+                    </button>
+                    <button class="terrain-btn" data-terrain="vallonne">
+                        🌊 Vallonné
+                    </button>
+                    <button class="terrain-btn" data-terrain="archipel">
+                        🏝️ Archipel
+                    </button>
+                    <button class="terrain-btn active" data-terrain="heightmap">
+                        🗻 Standard
+                    </button>
+                    <button class="terrain-btn real-terrain" data-terrain="reunion">
+                        🏝️ Réunion
+                    </button>
+                    <button class="terrain-btn real-terrain" data-terrain="honshu_kanto">
+                        🗾 Honshu Kanto
+                    </button>
+                </div>
+            </div>
+
+            <!-- Statistiques en temps réel -->
+            <div class="stats-panel">
+                <h3>Statistiques</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Taille:</span>
+                    <span id="stat-size">-</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Altitude min:</span>
+                    <span id="stat-min">-</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Altitude max:</span>
+                    <span id="stat-max">-</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Moyenne:</span>
+                    <span id="stat-mean">-</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Rugosité:</span>
+                    <span id="stat-roughness">-</span>
+                </div>
+            </div>
+
+            <!-- Contrôles de rendu -->
+            <div class="render-controls">
+                <h3>Rendu</h3>
+                
+                <div class="control-row">
+                    <label for="heightScale">Échelle altitude:</label>
+                    <input type="range" id="heightScale" min="0" max="30" step="1" value="20">
+                    <span id="heightScaleValue">20</span>
+                </div>
+                
+                <div class="control-row">
+                    <label for="sunPosition">Position soleil:</label>
+                    <input type="range" id="sunPosition" min="45" max="315" step="5" value="180">
+                    <span id="sunPositionValue">Zénith (Midi)</span>
+                </div>
+                
+                <div class="control-row">
+                    <label for="shadowQuality">Qualité ombres:</label>
+                    <select id="shadowQuality">
+                        <option value="low">Faible (1K)</option>
+                        <option value="medium" selected>Moyenne (4K)</option>
+                        <option value="high">Haute (8K)</option>
+                        <option value="ultra">Ultra (16K)</option>
+                    </select>
+                </div>
+                
+
+
+            </div>
+
+
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/TerrainLoader.js"></script>
+    <script src="js/TerrainRenderer.js"></script>
+    <script src="js/UIController.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html> 
