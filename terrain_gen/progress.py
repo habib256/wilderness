@@ -19,6 +19,7 @@ class ProgressStage(Enum):
     PERLIN_FBM = "perlin_fbm"
     BLENDING = "blending"
     NORMALIZATION = "normalization"
+    EROSION = "erosion"
     SAVING = "saving"
     COMPLETED = "completed"
 

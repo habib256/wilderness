@@ -30,6 +30,35 @@ run-heightmap: ## Générer heightmap Diamond-Square + Perlin fBm
 	$(PYTHON) -m terrain_gen.heightmap --size $(TERRAIN_SIZE) --seed $(SEED) --output output/heightmap.png
 	@echo "Heightmap générée: output/heightmap.png"
 
+run-erosion: ## Appliquer érosion hydraulique (medium)
+	$(PYTHON) -m terrain_gen.erosion_cli --input output/heightmap.png --output output/eroded_heightmap.png --intensity medium --stats
+	@echo "Érosion terminée: output/eroded_heightmap.png"
+
+run-erosion-light: ## Érosion légère
+	$(PYTHON) -m terrain_gen.erosion_cli --input output/heightmap.png --output output/eroded_light.png --intensity light --stats
+	@echo "Érosion légère terminée: output/eroded_light.png"
+
+run-erosion-heavy: ## Érosion forte
+	$(PYTHON) -m terrain_gen.erosion_cli --input output/heightmap.png --output output/eroded_heavy.png --intensity heavy --stats
+	@echo "Érosion forte terminée: output/eroded_heavy.png"
+
+run-erosion-custom: ## Érosion personnalisée (100k itérations)
+	$(PYTHON) -m terrain_gen.erosion_cli --input output/heightmap.png --output output/eroded_custom.png --iterations 100000 --gravity 5.0 --stats
+	@echo "Érosion personnalisée terminée: output/eroded_custom.png"
+
+run-terrain-complete: ## Pipeline complet: génération + érosion
+	$(MAKE) run-heightmap
+	$(MAKE) run-erosion
+	@echo "Pipeline complet terminé ✓"
+
+run-eroded-terrains: ## Générer tous les terrains érodés pour le visualiseur
+	$(PYTHON) terrain_gen/generate_eroded_terrains.py
+	@echo "Terrains érodés générés pour le visualiseur ✓"
+
+run-eroded-terrains-working: ## Générer terrains érodés avec algorithme fonctionnel
+	$(PYTHON) create_eroded_terrains_working.py
+	@echo "Terrains érodés fonctionnels générés ✓"
+
 run-reunion-4k: ## Générer heightmap 4K Réunion (données réelles)
 	$(PYTHON) terrain_gen/generate_reunion_4k.py
 	@echo "Heightmap Réunion 4K générée: output/reunion_real_*.png"

@@ -458,6 +458,13 @@ class HeightMapGenerator:
         progress_tracker = get_progress_tracker()
         progress_tracker.start_stage(ProgressStage.SAVING, f"Sauvegarde PNG: {filepath}")
         
+        
+        # S'assure que la heightmap est normalisée entre 0 et 1
+        min_val = np.min(heightmap)
+        max_val = np.max(heightmap)
+        if max_val > min_val:
+            heightmap = (heightmap - min_val) / (max_val - min_val)
+            
         # Convertit en 16-bit
         progress_tracker.update_progress(0.3, "Conversion 16-bit")
         data_16bit = (heightmap * 65535).astype(np.uint16)
