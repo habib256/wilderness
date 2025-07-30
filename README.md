@@ -59,6 +59,7 @@ wilderness/
 - CUDA 11.8+ (pour érosion GPU)
 - Godot 4.2+
 - Make
+- **CRITIQUE** : Cursor AI Live Server (pour le serveur de développement)
 
 ### Dépendances Python
 ```bash
@@ -72,7 +73,26 @@ cd engine/
 # Instructions détaillées dans engine/README.md
 ```
 
+### Serveur de Développement - CRITIQUE
+```bash
+# L'IA DOIT utiliser Cursor AI Live Server, PAS python -m http.server
+# Cursor AI Live Server offre :
+# - Hot reload automatique
+# - Support des modules ES6
+# - Gestion des erreurs améliorée
+# - Intégration parfaite avec l'IDE
+
+# Accès : http://localhost:5500 (port par défaut)
+```
+
 ## Utilisation
+
+### Serveur de Développement Web
+```bash
+# L'IA DOIT utiliser Cursor AI Live Server
+# Accès : http://localhost:5500
+# Hot reload automatique pour le développement
+```
 
 ### Génération de Terrain
 ```bash

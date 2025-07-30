@@ -6,7 +6,32 @@
 
 ---
 
-Je lance moi même le serveur avec Cursor AI Live Server
+## 🚀 Serveur de Développement - CRITIQUE POUR L'IA
+
+### ⚠️ INSTRUCTION OBLIGATOIRE POUR L'IA
+**L'IA DOIT TOUJOURS utiliser Cursor AI Live Server pour lancer le serveur de développement :**
+
+```bash
+# L'IA doit utiliser Cursor AI Live Server, PAS python -m http.server
+# Cursor AI Live Server offre :
+# - Hot reload automatique
+# - Support des modules ES6
+# - Gestion des erreurs améliorée
+# - Intégration parfaite avec l'IDE
+```
+
+### 🎯 Pourquoi Cursor AI Live Server est INDISPENSABLE
+- **Hot reload** : Modifications JavaScript/HTML instantanées
+- **Modules ES6** : Support natif des imports/exports modernes
+- **Debugging** : Intégration parfaite avec les outils de développement
+- **Performance** : Optimisations spécifiques pour le développement web
+- **Compatibilité** : Gestion automatique des headers CORS et MIME types
+
+### 📋 Instructions pour l'IA
+1. **NE JAMAIS utiliser** `python -m http.server 8000`
+2. **TOUJOURS utiliser** Cursor AI Live Server
+3. **Vérifier** que le serveur est accessible sur le port par défaut
+4. **Tester** le hot reload en modifiant un fichier JavaScript
 
 ## 🏗️ Architecture Générale
 
@@ -124,7 +149,7 @@ web/
 - ✅ Interface moderne avec animations
 - ✅ Terrains réels haute résolution (données SRTM/OpenElevation)
 
-**Accès**: `python3 -m http.server 8000` puis http://localhost:8000
+**Accès**: Cursor AI Live Server puis http://localhost:5500 (port par défaut)
 
 ### 3. `tests/` - Suite de Tests Complète ✅
 
@@ -360,7 +385,8 @@ tests/test_heightmap.py                  # Comment utiliser l'API
 
 ### 3. Interface Web Interactive
 ```bash
-cd web/ && python3 -m http.server 8000
+# L'IA DOIT utiliser Cursor AI Live Server, PAS python -m http.server
+# Cursor AI Live Server offre hot reload et support ES6 natif
 # Visualisation immédiate des résultats
 # Compréhension intuitive des paramètres
 ```
@@ -423,7 +449,8 @@ cd web && python3 -m http.server 8000  # Visualisation
 ```
 
 ### 2. Exploration Interactive
-- Ouvrir http://localhost:8000 pour voir les terrains
+- **Lancer Cursor AI Live Server** (pas python -m http.server)
+- Ouvrir http://localhost:5500 pour voir les terrains
 - Tester différents paramètres via CLI
 - Examiner `tests/test_heightmap.py` pour comprendre l'API
 
@@ -463,6 +490,39 @@ make pre-commit         # Avant chaque modification
 - Performance mesurée et optimisée
 - Interface utilisateur soignée
 - Tests comme documentation
+
+---
+
+## 🚨 INSTRUCTIONS CRITIQUES POUR L'IA
+
+### Serveur de Développement - OBLIGATOIRE
+**L'IA DOIT TOUJOURS utiliser Cursor AI Live Server pour le développement web :**
+
+#### ❌ CE QUE L'IA NE DOIT JAMAIS FAIRE
+```bash
+python -m http.server 8000  # INTERDIT
+python3 -m http.server 8000 # INTERDIT
+```
+
+#### ✅ CE QUE L'IA DOIT TOUJOURS FAIRE
+```bash
+# Utiliser Cursor AI Live Server
+# Accès : http://localhost:5500
+# Hot reload automatique activé
+```
+
+#### 🎯 Avantages Cursor AI Live Server
+- **Hot reload** : Modifications instantanées sans refresh
+- **Modules ES6** : Support natif des imports/exports modernes
+- **Debugging** : Intégration parfaite avec les outils de développement
+- **Performance** : Optimisations spécifiques pour le développement
+- **Compatibilité** : Gestion automatique des headers CORS et MIME types
+
+#### 📋 Checklist pour l'IA
+- [ ] Utiliser Cursor AI Live Server (pas python -m http.server)
+- [ ] Vérifier l'accès sur http://localhost:5500
+- [ ] Tester le hot reload en modifiant un fichier JavaScript
+- [ ] Vérifier que les modules ES6 fonctionnent correctement
 
 ---
 

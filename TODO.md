@@ -100,12 +100,16 @@
 - [ ] GitHub Actions CI/CD
 - [ ] Docker containerization
 - [ ] Version release automatique
+- [ ] **CRITIQUE** : Documentation Cursor AI Live Server pour l'IA
+- [ ] **CRITIQUE** : Scripts de lancement serveur standardisés
 
 ### Documentation
 - [ ] Guide développeur complet
 - [ ] Documentation API (Sphinx)
 - [ ] Exemples d'utilisation avancés
 - [ ] Tutoriels interactifs
+- [ ] **CRITIQUE** : Guide serveur de développement pour l'IA
+- [ ] **CRITIQUE** : Instructions Cursor AI Live Server détaillées
 
 ---
 
