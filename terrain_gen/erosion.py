@@ -349,77 +349,287 @@ def erosion(
 
 def demo() -> None:
     """
-    Démonstration de l'algorithme d'érosion avec visualisation.
+    Démonstration de l'algorithme d'érosion sur un terrain simple.
     """
-    try:
-        import matplotlib.pyplot as plt
-        from matplotlib.animation import FuncAnimation
-    except ImportError:
-        print("matplotlib requis pour la démonstration")
-        return
+    print("=== Démonstration Érosion Hydraulique ===")
     
-    # Génération d'un terrain de test
-    H, W = 128, 128
-    x = np.linspace(-2, 2, W)
-    y = np.linspace(-2, 2, H)
-    X, Y = np.meshgrid(x, y)
-    
-    # Terrain initial avec montagnes et vallées
-    heightmap = (
-        0.5 * np.exp(-(X**2 + Y**2) / 0.5) +  # Montagne centrale
-        0.3 * np.exp(-((X-1)**2 + (Y-1)**2) / 0.3) +  # Montagne secondaire
-        0.2 * np.exp(-((X+1)**2 + (Y+1)**2) / 0.4) +  # Montagne tertiaire
-        0.1 * np.random.rand(H, W)  # Bruit
-    )
+    # Génération d'un terrain simple
+    size = 256
+    heightmap = np.random.rand(size, size).astype(np.float32)
     
     # Paramètres d'érosion
     params = {
-        "rain_rate": 0.02,
-        "evap_rate": 0.15,
-        "sed_capacity": 2.0,
-        "dissolve_rate": 0.2,
-        "deposit_rate": 0.2,
-        "thermal_angle": 25.0,
-        "thermal_rate": 0.15,
+        "rain_rate": 0.01,
+        "evap_rate": 0.1,
+        "sed_capacity": 1.0,
+        "dissolve_rate": 0.1,
+        "deposit_rate": 0.1,
+        "thermal_angle": 30.0,
+        "thermal_rate": 0.1,
         "gravity": 9.81,
         "seed": 42
     }
     
+    print(f"Terrain initial: {size}x{size}")
+    print(f"Altitude min/max: {heightmap.min():.3f}/{heightmap.max():.3f}")
+    
     # Application de l'érosion
-    print("Application de l'érosion...")
-    eroded_heightmap, metrics = erosion(heightmap, n_iters=50, params=params)
+    eroded, metrics = erosion(heightmap, n_iters=50, params=params)
     
-    # Affichage des résultats
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-    
-    # Terrain initial
-    im1 = axes[0].imshow(heightmap, cmap='terrain')
-    axes[0].set_title('Terrain Initial')
-    axes[0].axis('off')
-    plt.colorbar(im1, ax=axes[0])
-    
-    # Terrain érodé
-    im2 = axes[1].imshow(eroded_heightmap, cmap='terrain')
-    axes[1].set_title('Terrain Érodé')
-    axes[1].axis('off')
-    plt.colorbar(im2, ax=axes[1])
-    
-    # Différence
-    diff = eroded_heightmap - heightmap
-    im3 = axes[2].imshow(diff, cmap='RdBu_r', vmin=-0.1, vmax=0.1)
-    axes[2].set_title('Différence (Érodé - Initial)')
-    axes[2].axis('off')
-    plt.colorbar(im3, ax=axes[2])
-    
-    plt.tight_layout()
-    
-    # Affichage des métriques
-    print("\nMétriques de simulation:")
-    for key, value in metrics.items():
-        print(f"  {key}: {value}")
-    
-    plt.show()
+    print(f"Terrain érodé: {size}x{size}")
+    print(f"Altitude min/max: {eroded.min():.3f}/{eroded.max():.3f}")
+    print(f"Temps de simulation: {metrics['cpu_time_seconds']:.2f}s")
+    print(f"Conservation de masse: {metrics['mass_conservation_percent']:.6f}")
+    print("=== Démonstration terminée ===")
 
 
 if __name__ == "__main__":
-    demo()
+    import argparse
+    import sys
+    from pathlib import Path
+    
+    def main():
+        parser = argparse.ArgumentParser(
+            description="Algorithme d'érosion hydraulique et thermique pour heightmaps",
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            epilog="""
+Exemples d'utilisation:
+  # Érosion légère sur heightmap existante
+  python -m terrain_gen.erosion input.png --iterations 20 --output eroded_light.png
+  
+  # Érosion forte avec paramètres personnalisés
+  python -m terrain_gen.erosion input.png --iterations 100 --rain-rate 0.02 --thermal-rate 0.2
+  
+  # Érosion thermique uniquement
+  python -m terrain_gen.erosion input.png --iterations 50 --rain-rate 0 --thermal-rate 0.15
+  
+  # Démonstration avec terrain généré
+  python -m terrain_gen.erosion --demo
+            """
+        )
+        
+        # Arguments principaux
+        parser.add_argument(
+            "input", 
+            nargs="?", 
+            help="Fichier heightmap d'entrée (PNG ou RAW). Si non fourni, génère un terrain aléatoire"
+        )
+        parser.add_argument(
+            "--output", "-o",
+            default="output/eroded_heightmap.png",
+            help="Fichier de sortie (défaut: output/eroded_heightmap.png)"
+        )
+        parser.add_argument(
+            "--iterations", "-i",
+            type=int,
+            default=50,
+            help="Nombre d'itérations de simulation (défaut: 50)"
+        )
+        
+        # Paramètres hydrauliques
+        parser.add_argument(
+            "--rain-rate",
+            type=float,
+            default=0.01,
+            help="Taux de pluie par itération (défaut: 0.01)"
+        )
+        parser.add_argument(
+            "--evap-rate",
+            type=float,
+            default=0.1,
+            help="Taux d'évaporation 0-1 (défaut: 0.1)"
+        )
+        parser.add_argument(
+            "--sed-capacity",
+            type=float,
+            default=1.0,
+            help="Capacité de transport de sédiments (défaut: 1.0)"
+        )
+        parser.add_argument(
+            "--dissolve-rate",
+            type=float,
+            default=0.1,
+            help="Taux de dissolution 0-1 (défaut: 0.1)"
+        )
+        parser.add_argument(
+            "--deposit-rate",
+            type=float,
+            default=0.1,
+            help="Taux de dépôt 0-1 (défaut: 0.1)"
+        )
+        
+        # Paramètres thermiques
+        parser.add_argument(
+            "--thermal-angle",
+            type=float,
+            default=30.0,
+            help="Angle critique pour érosion thermique en degrés (défaut: 30.0)"
+        )
+        parser.add_argument(
+            "--thermal-rate",
+            type=float,
+            default=0.1,
+            help="Taux d'érosion thermique 0-1 (défaut: 0.1)"
+        )
+        
+        # Paramètres généraux
+        parser.add_argument(
+            "--gravity",
+            type=float,
+            default=9.81,
+            help="Accélération gravitationnelle (défaut: 9.81)"
+        )
+        parser.add_argument(
+            "--seed",
+            type=int,
+            default=42,
+            help="Graine pour reproductibilité (défaut: 42)"
+        )
+        parser.add_argument(
+            "--size",
+            type=int,
+            default=512,
+            help="Taille du terrain généré si aucun fichier d'entrée (défaut: 512)"
+        )
+        
+        # Options spéciales
+        parser.add_argument(
+            "--demo",
+            action="store_true",
+            help="Lancer la démonstration avec terrain généré"
+        )
+        parser.add_argument(
+            "--verbose", "-v",
+            action="store_true",
+            help="Afficher les détails de simulation"
+        )
+        parser.add_argument(
+            "--save-raw",
+            action="store_true",
+            help="Sauvegarder aussi en format RAW (Float32)"
+        )
+        
+        args = parser.parse_args()
+        
+        # Mode démonstration
+        if args.demo:
+            demo()
+            return
+        
+        # Validation des paramètres
+        if args.iterations < 1:
+            print("Erreur: Le nombre d'itérations doit être ≥ 1", file=sys.stderr)
+            sys.exit(1)
+        
+        if not (0 <= args.evap_rate <= 1):
+            print("Erreur: Le taux d'évaporation doit être entre 0 et 1", file=sys.stderr)
+            sys.exit(1)
+        
+        if not (0 <= args.dissolve_rate <= 1):
+            print("Erreur: Le taux de dissolution doit être entre 0 et 1", file=sys.stderr)
+            sys.exit(1)
+        
+        if not (0 <= args.deposit_rate <= 1):
+            print("Erreur: Le taux de dépôt doit être entre 0 et 1", file=sys.stderr)
+            sys.exit(1)
+        
+        if not (0 <= args.thermal_rate <= 1):
+            print("Erreur: Le taux d'érosion thermique doit être entre 0 et 1", file=sys.stderr)
+            sys.exit(1)
+        
+        # Chargement ou génération du terrain
+        if args.input:
+            input_path = Path(args.input)
+            if not input_path.exists():
+                print(f"Erreur: Fichier d'entrée '{args.input}' introuvable", file=sys.stderr)
+                sys.exit(1)
+            
+            print(f"Chargement du terrain: {args.input}")
+            
+            # Détection du format
+            if input_path.suffix.lower() == '.png':
+                try:
+                    from PIL import Image
+                    img = Image.open(input_path)
+                    heightmap = np.array(img).astype(np.float32) / 65535.0  # 16-bit PNG
+                    if heightmap.ndim == 3:
+                        heightmap = heightmap[:, :, 0]  # Prendre le premier canal
+                except ImportError:
+                    print("Erreur: PIL/Pillow requis pour les fichiers PNG", file=sys.stderr)
+                    sys.exit(1)
+            elif input_path.suffix.lower() == '.raw':
+                heightmap = np.fromfile(input_path, dtype=np.float32)
+                # Essayer de deviner la forme
+                size = int(np.sqrt(heightmap.size))
+                if size * size == heightmap.size:
+                    heightmap = heightmap.reshape(size, size)
+                else:
+                    print("Erreur: Format RAW non reconnu", file=sys.stderr)
+                    sys.exit(1)
+            else:
+                print("Erreur: Format de fichier non supporté. Utilisez PNG ou RAW", file=sys.stderr)
+                sys.exit(1)
+        else:
+            # Génération d'un terrain aléatoire
+            print(f"Génération d'un terrain aléatoire {args.size}x{args.size}")
+            np.random.seed(args.seed)
+            heightmap = np.random.rand(args.size, args.size).astype(np.float32)
+        
+        print(f"Terrain d'entrée: {heightmap.shape[0]}x{heightmap.shape[1]}")
+        print(f"Altitude min/max: {heightmap.min():.3f}/{heightmap.max():.3f}")
+        
+        # Paramètres d'érosion
+        params = {
+            "rain_rate": args.rain_rate,
+            "evap_rate": args.evap_rate,
+            "sed_capacity": args.sed_capacity,
+            "dissolve_rate": args.dissolve_rate,
+            "deposit_rate": args.deposit_rate,
+            "thermal_angle": args.thermal_angle,
+            "thermal_rate": args.thermal_rate,
+            "gravity": args.gravity,
+            "seed": args.seed
+        }
+        
+        if args.verbose:
+            print("\nParamètres d'érosion:")
+            for key, value in params.items():
+                print(f"  {key}: {value}")
+            print()
+        
+        # Application de l'érosion
+        print(f"Application de l'érosion ({args.iterations} itérations)...")
+        eroded, metrics = erosion(heightmap, n_iters=args.iterations, params=params)
+        
+        # Affichage des résultats
+        print(f"\nRésultats:")
+        print(f"  Terrain érodé: {eroded.shape[0]}x{eroded.shape[1]}")
+        print(f"  Altitude min/max: {eroded.min():.3f}/{eroded.max():.3f}")
+        print(f"  Temps de simulation: {metrics['cpu_time_seconds']:.2f}s")
+        print(f"  Conservation de masse: {metrics['mass_conservation_percent']:.6f}")
+        
+        # Sauvegarde
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Sauvegarde PNG
+        try:
+            from PIL import Image
+            # Conversion en 16-bit PNG
+            eroded_16bit = (eroded * 65535.0).astype(np.uint16)
+            img = Image.fromarray(eroded_16bit, mode='I;16')
+            img.save(output_path)
+            print(f"  Sauvegardé: {output_path}")
+        except ImportError:
+            print("Erreur: PIL/Pillow requis pour sauvegarder en PNG", file=sys.stderr)
+            sys.exit(1)
+        
+        # Sauvegarde RAW optionnelle
+        if args.save_raw:
+            raw_path = output_path.with_suffix('.raw')
+            eroded.astype(np.float32).tofile(raw_path)
+            print(f"  Sauvegardé: {raw_path}")
+        
+        print("Érosion terminée avec succès ✓")
+    
+    main()

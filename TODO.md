@@ -63,15 +63,32 @@
 
 ### Phase 2A: Amélioration Core (12h)
 
-#### Érosion Hydraulique (`terrain_gen/erosion.py`)
+#### Érosion Hydraulique (`terrain_gen/erosion.py`) ✅ COMPLÉTÉ
 - ✅ Algorithme de base implémenté (425 lignes)
 - ✅ Érosion hydraulique et thermique
 - ✅ Optimisation Numba avec parallélisation
-- [ ] Interface CLI pour utilisation standalone (2h)
+- ✅ Interface CLI complète pour utilisation standalone (635 lignes)
+- ✅ Intégration avec le pipeline de génération (Makefile)
+- ✅ Documentation et exemples d'utilisation
+- ✅ **Terrain érodé unique** disponible dans le visualiseur web
 - [ ] Tests unitaires pour validation (2h)
-- [ ] Intégration avec le pipeline de génération (2h)
-- [ ] Documentation et exemples (2h)
 - [ ] BONUS: Version GPU CUDA si ressources (4h)
+
+#### Correction des Voids SRTM (`terrain_gen/void_correction.py`) ✅ COMPLÉTÉ
+- ✅ Module spécialisé pour correction des pixels manquants (400+ lignes)
+- ✅ 5 méthodes de correction : bilinéaire, splines, moyenne locale, extrapolation, inpainting
+- ✅ Intégration automatique dans le pipeline SRTM → PNG 16-bit
+- ✅ Détection intelligente des voids et analyse des régions
+- ✅ Support OpenElevation et OpenTopography APIs
+- ✅ Validation complète avec tests automatisés
+
+#### Île de Yakushima (Japon) (`terrain_gen/generate_yakushima_4k.py`) ✅ COMPLÉTÉ
+- ✅ Extracteur spécialisé pour l'île de Yakushima (site UNESCO)
+- ✅ 5 zones disponibles : full, central, jomon, senpiro, steep
+- ✅ Mont Miyanoura (1 936 m) et gradient altitudinal spectaculaire
+- ✅ Forêt de Jōmon-sugi (cèdres millénaires) et cascade de Senpiro
+- ✅ Post-traitement spécialisé pour reliefs granitiques
+- ✅ Intégration visualiseur web et Makefile
 
 #### Optimisations Performance (4h)
 - [ ] Optimisation mémoire HeightMapGenerator (1h)
@@ -84,6 +101,7 @@
 #### Nouvelles Fonctionnalités Web
 - ✅ Interface simplifiée v1.1 (menu déroulant, UI minimale)
 - ✅ Vue 3D libérée et optimisée
+- ✅ **Terrain érodé intégré** dans le menu déroulant
 - [ ] Mode plein écran (1h)
 - [ ] Export/import de terrains utilisateur (2h)
 - [ ] Paramètres génération en temps réel (1h)
@@ -143,7 +161,7 @@
 ## 💡 Idées Futures (Phase 4+)
 
 ### Intégration Moteur 3D
-- [ ] Plugin Godot 4.2+ pour import heightmaps
+- [ ] Plugin moteur 3D pour import heightmaps
 - [ ] Streaming terrain avec LOD
 - [ ] Système gameplay survie basique
 

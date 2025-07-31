@@ -106,16 +106,18 @@ class UIController {
      * Met à jour les statistiques affichées
      */
     updateStats(terrainData) {
-        const { min, max, roughness } = terrainData.stats;
+        const { min, max, roughness, size } = terrainData.stats;
         
         // Met à jour les éléments d'interface
         const minElement = document.getElementById('stat-min');
         const maxElement = document.getElementById('stat-max');
         const roughnessElement = document.getElementById('stat-roughness');
+        const resolutionElement = document.getElementById('stat-resolution');
         
         if (minElement) minElement.textContent = min.toFixed(3);
         if (maxElement) maxElement.textContent = max.toFixed(3);
         if (roughnessElement) roughnessElement.textContent = roughness.toFixed(4);
+        if (resolutionElement) resolutionElement.textContent = size || '-';
     }
 
     /**

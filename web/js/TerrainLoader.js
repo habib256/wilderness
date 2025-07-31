@@ -83,50 +83,30 @@ class TerrainLoader {
                     landmarks: "Mont Fuji (3,776m), Tokyo, Yokohama"
                 }
             },
-            'eroded_light': {
-                name: 'Érodé Léger',
-                emoji: '🌊',
-                path: 'images/eroded_light.png',
-                description: 'Terrain standard avec érosion hydraulique légère (10k itérations)',
-                expectedSize: 2048,
-                isEroded: true,
-                erosionType: 'light'
-            },
-            'eroded_medium': {
-                name: 'Érodé Moyen',
+            'eroded': {
+                name: 'Érodé',
                 emoji: '🏔️',
                 path: 'images/eroded_medium.png',
-                description: 'Terrain standard avec érosion hydraulique moyenne (30k itérations)',
-                expectedSize: 2048,
-                isEroded: true,
-                erosionType: 'medium'
-            },
-            'eroded_heavy': {
-                name: 'Érodé Fort',
-                emoji: '⛰️',
-                path: 'images/eroded_heavy.png',
-                description: 'Terrain standard avec érosion hydraulique forte (50k itérations)',
-                expectedSize: 2048,
-                isEroded: true,
-                erosionType: 'heavy'
-            },
-            'eroded_extreme': {
-                name: 'Érodé Extrême',
-                emoji: '🏔️',
-                path: 'images/eroded_extreme.png',
-                description: 'Terrain standard avec érosion hydraulique extrême (100k itérations)',
-                expectedSize: 2048,
-                isEroded: true,
-                erosionType: 'extreme'
-            },
-            'eroded_medium_default': {
-                name: 'Érodé (Défaut)',
-                emoji: '💧',
-                path: 'images/eroded_medium_default.png',
-                description: 'Terrain généré et érodé avec les paramètres par défaut.',
+                description: 'Terrain standard avec érosion hydraulique (50 itérations)',
                 expectedSize: 1024,
                 isEroded: true,
-                erosionType: 'medium'
+                erosionType: 'standard'
+            },
+            'yakushima': {
+                name: 'Yakushima',
+                emoji: '🌿',
+                path: 'images/yakushima_full_4k.png',
+                description: 'Île de Yakushima (Japon) - Site UNESCO, Mont Miyanoura 1 936m',
+                expectedSize: 1024,
+                isEroded: false,
+                erosionType: 'none',
+                features: {
+                    type: 'Île granitique',
+                    elevation: '0-1 936m',
+                    gradient: 'Mer → 1 936m en 13km',
+                    heritage: 'Patrimoine UNESCO 1993',
+                    landmarks: 'Mont Miyanoura, Forêt Jōmon-sugi, Cascade Senpiro'
+                }
             }
         };
     }

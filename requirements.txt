@@ -9,6 +9,7 @@ rasterio>=1.3.0
 
 # Érosion hydraulique GPU
 cupy-cuda12x>=13.0.0
+numba>=0.56.0
 
 # API web
 Flask>=2.0.0
@@ -23,5 +24,4 @@ pytest-cov>=4.1.0
 sphinx>=4.0.0
 sphinx-rtd-theme>=1.0.0
 
-# Godot integration (optionnel)
-godot-parser>=0.1.0 
+ 

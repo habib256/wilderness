@@ -30,30 +30,35 @@ run-heightmap: ## Générer heightmap Diamond-Square + Perlin fBm
 	$(PYTHON) -m terrain_gen.heightmap --size $(TERRAIN_SIZE) --seed $(SEED) --output output/heightmap.png
 	@echo "Heightmap générée: output/heightmap.png"
 
-run-erosion: ## Appliquer érosion hydraulique (TODO: implémenter)
-	@echo "Érosion hydraulique à implémenter dans terrain_gen/erosion.py"
-	@echo "Module erosion.py contient l'algorithme de base mais pas d'interface CLI"
+run-erosion: ## Appliquer érosion hydraulique sur heightmap existante
+	$(PYTHON) -m terrain_gen.erosion output/heightmap.png --iterations 50 --output output/eroded_heightmap.png
+	@echo "Érosion appliquée: output/eroded_heightmap.png"
 
-run-erosion-light: ## Érosion légère (TODO)
-	@echo "Érosion légère à implémenter"
+run-erosion-light: ## Érosion légère (20 itérations) - DÉPRÉCIÉ
+	@echo "Commande dépréciée. Utilisez 'make run-erosion' pour l'érosion standard."
 
-run-erosion-heavy: ## Érosion forte (TODO)
-	@echo "Érosion forte à implémenter"
+run-erosion-heavy: ## Érosion forte (100 itérations) - DÉPRÉCIÉ
+	@echo "Commande dépréciée. Utilisez 'make run-erosion' pour l'érosion standard."
 
-run-erosion-custom: ## Érosion personnalisée (TODO)
-	@echo "Érosion personnalisée à implémenter"
+run-erosion-custom: ## Érosion personnalisée (paramètres configurables) - DÉPRÉCIÉ
+	@echo "Commande dépréciée. Utilisez 'make run-erosion' pour l'érosion standard."
+
+run-erosion-demo: ## Démonstration érosion sur terrain généré
+	$(PYTHON) -m terrain_gen.erosion --demo
+	@echo "Démonstration érosion terminée"
 
 run-terrain-complete: ## Pipeline complet: génération + érosion
 	$(MAKE) run-heightmap
 	$(MAKE) run-erosion
 	@echo "Pipeline complet terminé ✓"
 
-run-eroded-terrains: ## Générer terrains érodés (TODO: implémenter)
-	@echo "Génération de terrains érodés à implémenter"
-	@echo "Utiliser terrain_gen/erosion.py pour l'algorithme de base"
+run-eroded-terrains: ## Générer terrain érodé unique (FONCTIONNEL)
+	$(MAKE) run-erosion
+	@echo "Terrain érodé généré: output/eroded_heightmap.png"
 
-run-eroded-terrains-working: ## Générer terrains érodés fonctionnels (TODO)
-	@echo "Génération de terrains érodés fonctionnels à implémenter"
+run-eroded-terrains-working: ## Générer terrains érodés fonctionnels (FONCTIONNEL)
+	$(MAKE) run-eroded-terrains
+	@echo "Tous les terrains érodés fonctionnels générés ✓"
 
 run-reunion-4k: ## Générer heightmap 4K Réunion (données réelles)
 	$(PYTHON) terrain_gen/generate_reunion_4k.py
@@ -74,6 +79,26 @@ run-honshu-kansai: ## Générer heightmap zone Kansai (Osaka, Kyoto)
 run-honshu-alps: ## Générer heightmap Alpes japonaises 
 	printf "alps\ny\n" | $(PYTHON) terrain_gen/generate_honshu_4k.py
 	@echo "Heightmap Alpes japonaises générée: output/honshu_alps_*.png"
+
+run-yakushima-4k: ## Générer heightmap 4K Île de Yakushima (site UNESCO)
+	$(PYTHON) terrain_gen/generate_yakushima_4k.py --zone full --resolution 4k
+	@echo "Heightmap Yakushima générée: output/yakushima_full_4k.png"
+
+run-yakushima-central: ## Générer heightmap 4K Zone centrale Yakushima (Mont Miyanoura)
+	$(PYTHON) terrain_gen/generate_yakushima_4k.py --zone central --resolution 4k
+	@echo "Heightmap Yakushima centrale générée: output/yakushima_central_4k.png"
+
+run-yakushima-jomon: ## Générer heightmap 4K Forêt de Jōmon-sugi
+	$(PYTHON) terrain_gen/generate_yakushima_4k.py --zone jomon --resolution 4k
+	@echo "Heightmap Forêt Jōmon-sugi générée: output/yakushima_jomon_4k.png"
+
+run-yakushima-senpiro: ## Générer heightmap 4K Cascade de Senpiro
+	$(PYTHON) terrain_gen/generate_yakushima_4k.py --zone senpiro --resolution 4k
+	@echo "Heightmap Cascade Senpiro générée: output/yakushima_senpiro_4k.png"
+
+run-yakushima-steep: ## Générer heightmap 4K Zone côte-à-colline abrupte
+	$(PYTHON) terrain_gen/generate_yakushima_4k.py --zone steep --resolution 4k
+	@echo "Heightmap Zone abrupte Yakushima générée: output/yakushima_steep_4k.png"
 
 # Développement  
 format: ## Formater le code avec black

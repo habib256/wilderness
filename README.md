@@ -16,7 +16,7 @@ graph TD
     F --> G["Hydraulic Erosion GPU"]
     G --> H["Eroded Heightmap"]
     
-    H --> I["Godot Import"]
+    H --> I["Moteur 3D Import"]
     I --> J["HeightMap Terrain Plugin"]
     J --> K["LOD Quadtree System"]
     
@@ -36,8 +36,7 @@ wilderness/
 ├── ai_amplifier/         # Pipeline IA pour textures
 │   ├── depth2img_pipeline.py
 │   └── README.md
-├── engine/               # Projet Godot
-│   ├── project.godot
+├── engine/               # Projet Moteur 3D
 │   ├── terrain/          # Scripts terrain et LOD
 │   └── README.md
 ├── gameplay/             # Système de survie
@@ -57,7 +56,6 @@ wilderness/
 ### Prérequis
 - Python 3.10+
 - CUDA 11.8+ (pour érosion GPU)
-- Godot 4.2+
 - Make
 - **CRITIQUE** : Cursor AI Live Server (pour le serveur de développement)
 
@@ -66,7 +64,7 @@ wilderness/
 pip install -r requirements.txt
 ```
 
-### Configuration Godot
+### Configuration Moteur 3D
 ```bash
 # Installer le plugin HeightMap Terrain
 cd engine/
@@ -100,6 +98,19 @@ cd engine/
 make run-heightmap
 
 # Appliquer l'érosion hydraulique
+
+# Générer des terrains réels (Yakushima, Réunion, Honshu)
+python terrain_gen/generate_yakushima_4k.py --zone wide --resolution 4k
+python terrain_gen/generate_reunion_4k.py --zone full --resolution 4k
+python terrain_gen/generate_honshu_4k.py --zone kanto --resolution 4k
+
+# Zones disponibles pour Yakushima:
+# - full: Île complète (site UNESCO)
+# - central: Zone centrale avec Mont Miyanoura
+# - jomon: Forêt de Jōmon-sugi
+# - senpiro: Cascade de Senpiro
+# - steep: Zone côte-à-colline abrupte
+# - wide: Vue large et éloignée (zone étendue ~56×48km)
 make run-erosion
 
 # Pipeline complète
@@ -154,8 +165,7 @@ make test-hydro
 - **Physique** : Flow accumulation, transport sédimentaire
 - **Performance** : > 60 FPS sur RTX 3060
 
-### Moteur Godot
-- **Version** : Godot 4.2+
+### Moteur 3D
 - **Plugin** : HeightMap Terrain avec LOD quadtree
 - **Streaming** : Chargement dynamique par chunks
 - **Rendu** : PBR avec normal maps générées

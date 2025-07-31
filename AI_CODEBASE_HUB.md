@@ -52,7 +52,7 @@ graph TD
     F --> G["Hydraulic Erosion GPU"]
     G --> H["Eroded Heightmap"]
     
-    H --> I["Godot Import"]
+    H --> I["Moteur 3D Import"]
     I --> J["HeightMap Terrain Plugin"]
     J --> K["LOD Quadtree System"]
     
@@ -69,7 +69,7 @@ wilderness/
 ├── tests/                ✅ IMPLÉMENTÉ - Suite de tests complète
 ├── ai_amplifier/         🔄 PLANIFIÉ - Pipeline Stable Diffusion
 ├── gameplay/             🔄 PLANIFIÉ - Systèmes de survie
-├── engine/               🔄 PLANIFIÉ - Intégration Godot
+├── engine/               🔄 PLANIFIÉ - Intégration Moteur 3D
 ├── docs/                 📚 DOCUMENTATION
 └── output/               📁 Fichiers générés
 ```
@@ -199,7 +199,7 @@ make benchmark         # Performance tests (TODO: implémenter)
 - Update loop ~1Hz avec dégradation
 - Sauvegarde/chargement états
 
-### 3. `engine/` - Intégration Godot 🔄
+### 3. `engine/` - Intégration Moteur 3D 🔄
 
 **Objectif**: Moteur 3D avec streaming terrain
 **Statut**: Planifié uniquement
@@ -231,6 +231,15 @@ make run-honshu-4k        # Île complète (824×1,364 km)
 make run-honshu-kanto     # Tokyo/Mont Fuji (167×167 km) ✅ TESTÉ
 make run-honshu-kansai    # Osaka/Kyoto (222×189 km)
 make run-honshu-alps      # Alpes japonaises (144×167 km)
+```
+
+**Zones Yakushima disponibles**:
+```bash
+make run-yakushima-4k     # Île complète (site UNESCO)
+make run-yakushima-central # Zone centrale (Mont Miyanoura 1 936m)
+make run-yakushima-jomon   # Forêt de Jōmon-sugi (cèdres millénaires)
+make run-yakushima-senpiro # Cascade de Senpiro (60m)
+make run-yakushima-steep   # Zone côte-à-colline abrupte
 ```
 
 **🌊 Correction Niveau de la Mer (v0.1.1) - RÉSOLU ✅**:
@@ -333,8 +342,8 @@ ES6 JavaScript          # Classes modulaires modernes
 cupy-cuda11x>=12.0.0    # Calculs GPU pour érosion
 torch>=2.2.0            # Stable Diffusion pipeline
 
-# Godot Integration  
-godot-parser>=0.1.0     # Parsing projets Godot
+# Moteur 3D Integration  
+# moteur-parser>=0.1.0     # Parsing projets moteur 3D
 ```
 
 ---
@@ -363,6 +372,7 @@ Terrains disponibles dans `output/examples/`:
 - `archipel.png` (rugosité 0.0135)
 - `reunion_real_native.png` (1000×1000, Île de la Réunion)
 - `honshu_kanto_hd.png` (1500×1500, Région Kanto - Japon)
+- `yakushima_full_4k.png` (4096×4096, Île de Yakushima - Japon)
 
 ---
 
@@ -485,7 +495,7 @@ make pre-commit         # Avant chaque modification
 **Points d'extension prioritaires**:
 1. **Érosion hydraulique** (`terrain_gen/erosion.py`) - GPU CUDA
 2. **Pipeline IA** (`ai_amplifier/`) - Stable Diffusion upsampling
-3. **Moteur Godot** (`engine/`) - Streaming terrain 3D
+3. **Moteur 3D** (`engine/`) - Streaming terrain 3D
 4. **Gameplay** (`gameplay/`) - Mécaniques survie
 5. **Extension terrains réels** - Plus de régions du monde (Alpes, Himalaya, etc.)
 

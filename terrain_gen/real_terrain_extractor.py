@@ -24,6 +24,9 @@ from dataclasses import dataclass
 from .progress import (
     ProgressTracker, ProgressStage, get_progress_tracker
 )
+from .void_correction import (
+    correct_srtm_voids, analyze_voids, VoidCorrectionMethod
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -125,6 +128,58 @@ class HonshuTerrainBounds:
     )
 
 
+class YakushimaTerrainBounds:
+    """Coordonnées précises de l'île de Yakushima (Japon)."""
+    
+    # Île complète de Yakushima (site UNESCO)
+    FULL_ISLAND = TerrainBounds(
+        north=30.45,    # Pointe nord
+        south=30.25,    # Pointe sud  
+        east=130.65,    # Pointe est
+        west=130.45     # Pointe ouest
+    )
+    
+    # Zone centrale avec Mont Miyanoura (1 936 m)
+    CENTRAL_MOUNTAINS = TerrainBounds(
+        north=30.38,
+        south=30.32,
+        east=130.55,
+        west=130.50
+    )
+    
+    # Forêt de Jōmon-sugi (cèdres millénaires)
+    JOMON_FOREST = TerrainBounds(
+        north=30.375,
+        south=30.365,
+        east=130.505,
+        west=130.495
+    )
+    
+    # Cascade de Senpiro et ravins
+    SENPIRO_WATERFALL = TerrainBounds(
+        north=30.265,
+        south=30.250,
+        east=130.545,
+        west=130.530
+    )
+    
+    # Zone côte-à-colline la plus abrupte
+    STEEP_COAST = TerrainBounds(
+        north=30.250,
+        south=30.235,
+        east=130.610,
+        west=130.595
+    )
+    
+    # Vue large et éloignée de Yakushima (zone étendue)
+    WIDE_VIEW = TerrainBounds(
+        north=30.60,    # ~17km au nord
+        south=30.10,    # ~17km au sud
+        east=130.80,    # ~17km à l'est
+        west=130.30     # ~17km à l'ouest
+    )
+
+
 class OpenTopographyAPI:
     """Interface pour l'API OpenTopography (données SRTM 30m)."""
     
@@ -216,10 +271,32 @@ class OpenTopographyAPI:
             
             progress_tracker.update_progress(0.8, "Normalisation des données")
             
-            # Remplace les valeurs no-data par 0 (niveau mer)
+            # Analyse et corrige les voids (pixels manquants)
             nodata_value = dataset.nodata
             if nodata_value is not None:
-                elevation_data = np.where(elevation_data == nodata_value, 0, elevation_data)
+                # Analyse des voids avant correction
+                void_info = analyze_voids(elevation_data, nodata_value)
+                
+                if void_info['has_voids']:
+                    logger.info(f"Voids détectés: {void_info['void_percentage']:.2f}% "
+                               f"({void_info['void_pixels']} pixels)")
+                    
+                    # Corrige les voids avec interpolation bilinéaire
+                    elevation_data = correct_srtm_voids(
+                        elevation_data, 
+                        method=VoidCorrectionMethod.BILINEAR_INTERPOLATION,
+                        nodata_value=nodata_value,
+                        interpolation_radius=5
+                    )
+                    
+                    # Vérifie que la correction a fonctionné
+                    void_info_after = analyze_voids(elevation_data, nodata_value)
+                    if not void_info_after['has_voids']:
+                        logger.info("✅ Correction des voids réussie")
+                    else:
+                        logger.warning(f"⚠️ Voids restants: {void_info_after['void_percentage']:.2f}%")
+                else:
+                    logger.info("✅ Aucun void détecté dans les données SRTM")
             
             # Normalise entre 0 et 1
             min_elev = np.min(elevation_data)
@@ -306,7 +383,29 @@ class OpenElevationAPI:
                 else:
                     logger.warning(f"Erreur chunk {chunk_num}: {response.status_code}")
             
-            progress_tracker.update_progress(0.9, "Normalisation grille")
+            progress_tracker.update_progress(0.9, "Correction des voids et normalisation")
+            
+            # Détecte et corrige les voids (valeurs à 0 qui peuvent être des échecs de requête)
+            void_info = analyze_voids(elevation_grid, nodata_value=0)
+            
+            if void_info['has_voids']:
+                logger.info(f"Voids détectés dans OpenElevation: {void_info['void_percentage']:.2f}% "
+                           f"({void_info['void_pixels']} pixels)")
+                
+                # Corrige les voids avec extrapolation (plus adapté pour les données par points)
+                elevation_grid = correct_srtm_voids(
+                    elevation_grid, 
+                    method=VoidCorrectionMethod.EXTRAPOLATION,
+                    nodata_value=0,
+                    extrapolation_distance=10
+                )
+                
+                # Vérifie que la correction a fonctionné
+                void_info_after = analyze_voids(elevation_grid, nodata_value=0)
+                if not void_info_after['has_voids']:
+                    logger.info("✅ Correction des voids OpenElevation réussie")
+                else:
+                    logger.warning(f"⚠️ Voids restants: {void_info_after['void_percentage']:.2f}%")
             
             # Normalise
             min_elev = np.min(elevation_grid)
@@ -867,6 +966,248 @@ class HonshuTerrainExtractor:
         
         logger.info(f"🌊 Honshu processed - Niveau de la mer préservé à 0.0")
         logger.info(f"⛰️ Mont Fuji et reliefs montagneux accentués")
+        
+        return heightmap_final.astype(np.float32)
+
+
+class YakushimaTerrainExtractor:
+    """Extracteur spécialisé pour l'île de Yakushima (Japon)."""
+    
+    def __init__(self, api_key: Optional[str] = None):
+        """
+        Initialise l'extracteur Yakushima.
+        
+        Args:
+            api_key: Clé API OpenTopography (optionnelle)
+        """
+        self.opentopo = OpenTopographyAPI(api_key)
+        self.openelevation = OpenElevationAPI()
+        
+    def extract_yakushima_4k(self, zone: str = "full") -> Optional[np.ndarray]:
+        """
+        Extrait une heightmap haute résolution de Yakushima.
+        
+        Args:
+            zone: "full", "central", "jomon", "senpiro", ou "steep"
+            
+        Returns:
+            Heightmap normalisée ou None si erreur
+        """
+        progress_tracker = get_progress_tracker()
+        progress_tracker.start_stage(
+            ProgressStage.INITIALIZATION,
+            f"Extraction Yakushima Haute Résolution - zone {zone}"
+        )
+        
+        # Sélectionne la zone
+        if zone == "full":
+            bounds = YakushimaTerrainBounds.FULL_ISLAND
+        elif zone == "central":
+            bounds = YakushimaTerrainBounds.CENTRAL_MOUNTAINS
+        elif zone == "jomon":
+            bounds = YakushimaTerrainBounds.JOMON_FOREST
+        elif zone == "senpiro":
+            bounds = YakushimaTerrainBounds.SENPIRO_WATERFALL
+        elif zone == "steep":
+            bounds = YakushimaTerrainBounds.STEEP_COAST
+        elif zone == "wide":
+            bounds = YakushimaTerrainBounds.WIDE_VIEW
+        else:
+            logger.error(f"Zone inconnue: {zone}")
+            return None
+        
+        center_lat, center_lon = bounds.center()
+        lat_km, lon_km = bounds.dimensions_km()
+        
+        logger.info(f"🌿 Yakushima {zone}: {lat_km:.1f}×{lon_km:.1f}km")
+        logger.info(f"📍 Centre: {center_lat:.3f}°N, {center_lon:.3f}°E")
+        
+        # Essaie d'abord SRTM (meilleure résolution)
+        progress_tracker.update_progress(0.1, "Tentative SRTM OpenTopography")
+        
+        heightmap = self.opentopo.get_srtm_data(bounds, output_size=(4096, 4096))
+        
+        if heightmap is not None:
+            logger.info("✅ SRTM récupéré avec succès")
+            progress_tracker.update_progress(0.8, "Post-traitement Yakushima")
+            
+            # Post-traitement spécialisé pour Yakushima
+            heightmap = self._post_process_yakushima(heightmap)
+            
+            return heightmap
+        
+        # Fallback vers OpenElevation
+        logger.warning("⚠️ SRTM indisponible, fallback OpenElevation")
+        progress_tracker.update_progress(0.2, "Fallback OpenElevation")
+        
+        # Utilise une grille plus dense pour compenser la résolution
+        heightmap = self.openelevation.get_elevation_grid(bounds, grid_size=256)
+        
+        if heightmap is not None:
+            logger.info("✅ OpenElevation récupéré avec succès")
+            progress_tracker.update_progress(0.8, "Post-traitement Yakushima")
+            
+            # Post-traitement spécialisé
+            heightmap = self._post_process_yakushima(heightmap)
+            
+            return heightmap
+        
+        logger.error("❌ Aucune source de données disponible")
+        return None
+    
+    def extract_yakushima_1k(self, zone: str = "full") -> Optional[np.ndarray]:
+        """
+        Extrait une heightmap basse résolution de Yakushima.
+        
+        Args:
+            zone: "full", "central", "jomon", "senpiro", ou "steep"
+            
+        Returns:
+            Heightmap normalisée ou None si erreur
+        """
+        progress_tracker = get_progress_tracker()
+        progress_tracker.start_stage(
+            ProgressStage.INITIALIZATION,
+            f"Extraction Yakushima Basse Résolution - zone {zone}"
+        )
+        
+        # Sélectionne la zone
+        if zone == "full":
+            bounds = YakushimaTerrainBounds.FULL_ISLAND
+        elif zone == "central":
+            bounds = YakushimaTerrainBounds.CENTRAL_MOUNTAINS
+        elif zone == "jomon":
+            bounds = YakushimaTerrainBounds.JOMON_FOREST
+        elif zone == "senpiro":
+            bounds = YakushimaTerrainBounds.SENPIRO_WATERFALL
+        elif zone == "steep":
+            bounds = YakushimaTerrainBounds.STEEP_COAST
+        elif zone == "wide":
+            bounds = YakushimaTerrainBounds.WIDE_VIEW
+        else:
+            logger.error(f"Zone inconnue: {zone}")
+            return None
+        
+        center_lat, center_lon = bounds.center()
+        lat_km, lon_km = bounds.dimensions_km()
+        
+        logger.info(f"🌿 Yakushima {zone}: {lat_km:.1f}×{lon_km:.1f}km")
+        logger.info(f"📍 Centre: {center_lat:.3f}°N, {center_lon:.3f}°E")
+        
+        # Essaie d'abord SRTM
+        progress_tracker.update_progress(0.1, "Tentative SRTM OpenTopography")
+        
+        heightmap = self.opentopo.get_srtm_data(bounds, output_size=(1024, 1024))
+        
+        if heightmap is not None:
+            logger.info("✅ SRTM récupéré avec succès")
+            progress_tracker.update_progress(0.8, "Post-traitement Yakushima")
+            
+            heightmap = self._post_process_yakushima(heightmap)
+            return heightmap
+        
+        # Fallback vers OpenElevation
+        logger.warning("⚠️ SRTM indisponible, fallback OpenElevation")
+        progress_tracker.update_progress(0.2, "Fallback OpenElevation")
+        
+        heightmap = self.openelevation.get_elevation_grid(bounds, grid_size=128)
+        
+        if heightmap is not None:
+            logger.info("✅ OpenElevation récupéré avec succès")
+            progress_tracker.update_progress(0.8, "Post-traitement Yakushima")
+            
+            heightmap = self._post_process_yakushima(heightmap)
+            return heightmap
+        
+        logger.error("❌ Aucune source de données disponible")
+        return None
+    
+    def _post_process_yakushima(self, heightmap: np.ndarray) -> np.ndarray:
+        """Post-traitement spécialisé pour Yakushima avec préservation du niveau de la mer."""
+        progress_tracker = get_progress_tracker()
+        progress_tracker.start_stage(
+            ProgressStage.NORMALIZATION,
+            "Post-traitement Yakushima"
+        )
+        
+        # Sépare les zones terrestres et sous-marines AVANT tout traitement
+        land_mask = heightmap > 0
+        underwater_mask = heightmap <= 0
+        
+        # Améliore le contraste pour mettre en valeur le relief granitique
+        progress_tracker.update_progress(0.2, "Amélioration contraste granitique")
+        
+        # Applique une courbe gamma SEULEMENT sur les zones terrestres
+        gamma = 0.75  # Accentue les reliefs moyens (dômes granitiques)
+        heightmap_enhanced = heightmap.copy()
+        
+        if np.any(land_mask):
+            # Normalise temporairement les terres pour appliquer gamma
+            land_values = heightmap[land_mask]
+            land_max = np.max(land_values)
+            if land_max > 0:
+                land_normalized = land_values / land_max
+                land_gamma = np.power(land_normalized, gamma)
+                heightmap_enhanced[land_mask] = land_gamma * land_max
+        
+        # Lisse légèrement pour éliminer le bruit de numérisation
+        progress_tracker.update_progress(0.4, "Lissage anti-bruit")
+        
+        from scipy.ndimage import gaussian_filter
+        
+        # Applique le lissage en préservant les zones distinctes
+        heightmap_smooth = heightmap_enhanced.copy()
+        
+        # Lisse seulement les zones terrestres pour éviter le mélange terre/mer
+        if np.any(land_mask):
+            land_smooth = gaussian_filter(heightmap_enhanced, sigma=0.6)
+            heightmap_smooth[land_mask] = land_smooth[land_mask]
+        
+        # Préserve les zones sous-marines sans lissage
+        if np.any(underwater_mask):
+            heightmap_smooth[underwater_mask] = heightmap_enhanced[underwater_mask]
+        
+        # CORRECTION: Préservation du niveau de la mer
+        progress_tracker.update_progress(0.6, "Préservation niveau de la mer")
+        
+        # Renormalisation qui préserve le niveau de la mer à 0.0
+        progress_tracker.update_progress(0.8, "Renormalisation avec niveau de mer fixe")
+        
+        heightmap_final = np.zeros_like(heightmap_smooth)
+        
+        # UTILISE LES MASQUES ORIGINAUX pour identifier correctement les zones
+        
+        if np.any(land_mask):
+            # Traite les zones émergées
+            land_values_smooth = heightmap_smooth[land_mask]
+            positive_land = land_values_smooth[land_values_smooth > 0]
+            
+            if len(positive_land) > 0:
+                max_val = np.max(positive_land)
+                if max_val > 0:
+                    # Normalise seulement les terres vers [0, 1]
+                    land_values_normalized = heightmap_smooth[land_mask] / max_val
+                    land_values_normalized = np.maximum(land_values_normalized, 0.0)
+                    heightmap_final[land_mask] = land_values_normalized
+        
+        if np.any(underwater_mask):
+            # Traite les zones sous-marines
+            original_underwater_values = heightmap[underwater_mask]
+            min_underwater = np.min(original_underwater_values)
+            
+            if min_underwater < 0:
+                # Normalise les profondeurs marines sur [-0.1, 0]
+                depth_ratio = abs(original_underwater_values) / abs(min_underwater)
+                underwater_final_values = -depth_ratio * 0.1
+                heightmap_final[underwater_mask] = underwater_final_values
+            else:
+                heightmap_final[underwater_mask] = 0.0
+        
+        progress_tracker.update_progress(1.0, "Post-traitement terminé")
+        
+        logger.info(f"🌊 Yakushima processed - Niveau de la mer préservé à 0.0")
+        logger.info(f"🏔️ Mont Miyanoura et reliefs granitiques accentués")
+        logger.info(f"🌿 Forêt de Jōmon-sugi et ravins préservés")
         
         return heightmap_final.astype(np.float32)
 

@@ -141,7 +141,7 @@ performance.mark('terrain-render');      // Profiling
 ### Phase 2 Intégration
 - Import heightmaps érodées (érosion hydraulique)
 - Support textures 4K Stable Diffusion
-- Export vers formats Godot (.escn, .tres)
+- Export vers formats moteur 3D (.obj, .fbx)
 
 ### Fonctionnalités Avancées
 - **Animation** : Interpolation entre terrains
