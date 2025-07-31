@@ -1,509 +1,425 @@
 """
-Module d'érosion hydraulique GPU avec CuPy.
+Algorithme d'érosion de terrain (hydraulique + thermique) optimisé.
 
-Implémente l'algorithme d'érosion hydraulique de base avec support GPU
-pour des performances optimales sur de grandes heightmaps.
+Ce module implémente une simulation physique d'érosion combinant :
+- Érosion hydraulique : transport de sédiments par l'eau
+- Érosion thermique : glissement de terrain sur les pentes critiques
 """
 
 import numpy as np
-import logging
-from typing import Optional, Tuple, Dict, Any
-from pathlib import Path
+from numba import njit, prange
+from typing import Dict, Tuple, Optional
 import time
 
-# Import conditionnel de CuPy
-try:
-    import cupy as cp
-    # Test si CUDA est vraiment disponible
-    cp.cuda.Device(0).compute_capability
-    CUPY_AVAILABLE = True
-    logger = logging.getLogger(__name__)
-    logger.info("CuPy + CUDA disponible - Érosion GPU activée")
-except (ImportError, Exception) as e:
-    CUPY_AVAILABLE = False
-    logger = logging.getLogger(__name__)
-    logger.warning(f"CuPy/CUDA non disponible ({e}) - Utilisation CPU")
 
-# CuPy détecté automatiquement
-logger = logging.getLogger(__name__)
-if CUPY_AVAILABLE:
-    logger.info("CuPy + CUDA disponible - Érosion GPU activée")
-else:
-    logger.info("CuPy non disponible - Utilisation CPU")
-
-from .progress import ProgressTracker, ProgressStage, get_progress_tracker
-
-
-class HydraulicErosion:
+@njit(parallel=True)
+def _compute_gradients(heightmap: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Algorithme d'érosion hydraulique GPU optimisé.
+    Calcule les gradients en X et Y de la heightmap.
     
-    Basé sur l'algorithme de base de l'érosion hydraulique :
-    1. Génération de gouttes d'eau aléatoires
-    2. Simulation du chemin de descente
-    3. Transport et dépôt de sédiments
-    4. Modification de la heightmap
+    Parameters
+    ----------
+    heightmap : np.ndarray
+        Heightmap d'entrée de forme (H, W)
+        
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray]
+        Gradients en X et Y de même forme que heightmap
     """
+    H, W = heightmap.shape
+    grad_x = np.zeros_like(heightmap)
+    grad_y = np.zeros_like(heightmap)
     
-    def __init__(self, 
-                 iterations: int = 50000,
-                 erosion_radius: float = 3.0,
-                 inertia: float = 0.05,
-                 sediment_capacity_factor: float = 4.0,
-                 min_slope: float = 0.01,
-                 gravity: float = 4.0,
-                 evaporation_speed: float = 0.01,
-                 deposition_speed: float = 0.1,
-                 erosion_speed: float = 0.3,
-                 seed: int = 42):
-        """
-        Initialise les paramètres d'érosion.
-        
-        Args:
-            iterations: Nombre de gouttes d'eau à simuler
-            erosion_radius: Rayon d'érosion autour de chaque goutte
-            inertia: Inertie de la goutte (0-1)
-            sediment_capacity_factor: Facteur de capacité de transport
-            min_slope: Pente minimale pour l'érosion
-            gravity: Force de gravité
-            evaporation_speed: Vitesse d'évaporation
-            deposition_speed: Vitesse de dépôt
-            erosion_speed: Vitesse d'érosion
-            seed: Seed pour la génération aléatoire
-        """
-        self.iterations = iterations
-        self.erosion_radius = erosion_radius
-        self.inertia = inertia
-        self.sediment_capacity_factor = sediment_capacity_factor
-        self.min_slope = min_slope
-        self.gravity = gravity
-        self.evaporation_speed = evaporation_speed
-        self.deposition_speed = deposition_speed
-        self.erosion_speed = erosion_speed
-        self.seed = seed
-        
-        # Initialisation du générateur aléatoire (sera fait dans erode())
-        self.rng = None
+    for i in prange(H):
+        for j in range(W):
+            # Gradient en X (direction j)
+            if j == 0:
+                grad_x[i, j] = heightmap[i, 1] - heightmap[i, 0]
+            elif j == W - 1:
+                grad_x[i, j] = heightmap[i, j] - heightmap[i, j-1]
+            else:
+                grad_x[i, j] = (heightmap[i, j+1] - heightmap[i, j-1]) / 2.0
+                
+            # Gradient en Y (direction i)
+            if i == 0:
+                grad_y[i, j] = heightmap[1, j] - heightmap[0, j]
+            elif i == H - 1:
+                grad_y[i, j] = heightmap[i, j] - heightmap[i-1, j]
+            else:
+                grad_y[i, j] = (heightmap[i+1, j] - heightmap[i-1, j]) / 2.0
     
-    def erode(self, heightmap: np.ndarray, 
-              progress_callback: Optional[callable] = None) -> np.ndarray:
-        """
-        Applique l'érosion hydraulique à une heightmap.
-        
-        Args:
-            heightmap: Heightmap d'entrée (numpy array)
-            progress_callback: Callback pour le suivi de progression
-            
-        Returns:
-            Heightmap érodée
-        """
-        if not CUPY_AVAILABLE:
-            logger.warning("CuPy non disponible - Utilisation CPU (très lent)")
-            return self._erode_cpu(heightmap, progress_callback)
-        
-        return self._erode_gpu(heightmap, progress_callback)
+    return grad_x, grad_y
+
+
+@njit(parallel=True)
+def _hydraulic_erosion_step(
+    heightmap: np.ndarray,
+    water: np.ndarray,
+    sediment: np.ndarray,
+    rain_rate: float,
+    evap_rate: float,
+    sed_capacity: float,
+    dissolve_rate: float,
+    deposit_rate: float,
+    gravity: float
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Effectue une étape d'érosion hydraulique.
     
-    def _erode_gpu(self, heightmap: np.ndarray, 
-                   progress_callback: Optional[callable] = None) -> np.ndarray:
-        """Version GPU de l'érosion avec CuPy."""
+    Parameters
+    ----------
+    heightmap : np.ndarray
+        Heightmap actuelle
+    water : np.ndarray
+        Carte d'eau actuelle
+    sediment : np.ndarray
+        Carte de sédiments actuelle
+    rain_rate : float
+        Taux de pluie par itération
+    evap_rate : float
+        Taux d'évaporation
+    sed_capacity : float
+        Capacité de transport de sédiments
+    dissolve_rate : float
+        Taux de dissolution
+    deposit_rate : float
+        Taux de dépôt
+    gravity : float
+        Accélération gravitationnelle
         
-        # Initialisation du générateur aléatoire GPU
-        self.rng = cp.random.RandomState(self.seed)
-        
-        # Transfert vers GPU
-        heightmap_gpu = cp.asarray(heightmap, dtype=cp.float32)
-        heightmap_original = heightmap_gpu.copy()
-        
-        # Paramètres
-        map_size = heightmap_gpu.shape[0]
-        map_size_minus_one = map_size - 1
-        
-        # Initialisation du tracker de progression
-        progress = get_progress_tracker()
-        progress.start_stage(ProgressStage.EROSION, self.iterations)
-        
-        logger.info(f"Début érosion GPU: {self.iterations} itérations sur {map_size}x{map_size}")
-        start_time = time.time()
-        
-        # Boucle principale d'érosion
-        for i in range(self.iterations):
-            # Génération position aléatoire
-            pos_x = self.rng.uniform(0, map_size_minus_one)
-            pos_y = self.rng.uniform(0, map_size_minus_one)
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray, np.ndarray]
+        Nouvelles heightmap, eau et sédiments
+    """
+    H, W = heightmap.shape
+    new_heightmap = heightmap.copy()
+    new_water = water.copy()
+    new_sediment = sediment.copy()
+    
+    # Ajout de pluie
+    new_water += rain_rate
+    
+    # Calcul des gradients
+    grad_x, grad_y = _compute_gradients(heightmap)
+    
+    # Flux d'eau et transport de sédiments
+    for i in prange(1, H-1):
+        for j in range(1, W-1):
+            # Direction du flux (plus forte pente)
+            slope_x = grad_x[i, j]
+            slope_y = grad_y[i, j]
+            slope_magnitude = np.sqrt(slope_x**2 + slope_y**2)
             
-            # Direction initiale aléatoire
-            dir_x = 0
-            dir_y = 0
-            
-            # État de la goutte
-            speed = 1.0
-            water = 1.0
-            sediment = 0.0
-            
-            # Simulation du chemin de la goutte
-            while water > 0.01 and speed > 0.01:
-                # Coordonnées entières
-                node_x = int(pos_x)
-                node_y = int(pos_y)
-                
-                # Coordonnées décimales dans la cellule
-                cell_offset_x = pos_x - node_x
-                cell_offset_y = pos_y - node_y
-                
-                # Calcul de la hauteur et du gradient
-                height_nw = heightmap_gpu[node_y, node_x]
-                height_ne = heightmap_gpu[node_y, min(node_x + 1, map_size_minus_one)]
-                height_sw = heightmap_gpu[min(node_y + 1, map_size_minus_one), node_x]
-                height_se = heightmap_gpu[min(node_y + 1, map_size_minus_one), 
-                                        min(node_x + 1, map_size_minus_one)]
-                
-                # Interpolation bilinéaire pour la hauteur
-                height = (height_nw * (1 - cell_offset_x) * (1 - cell_offset_y) +
-                         height_ne * cell_offset_x * (1 - cell_offset_y) +
-                         height_sw * (1 - cell_offset_x) * cell_offset_y +
-                         height_se * cell_offset_x * cell_offset_y)
-                
-                # Calcul du gradient
-                gradient_x = (height_ne - height_nw) * (1 - cell_offset_y) + (height_se - height_sw) * cell_offset_y
-                gradient_y = (height_sw - height_nw) * (1 - cell_offset_x) + (height_se - height_ne) * cell_offset_x
-                
-                # Normalisation du gradient
-                length = cp.sqrt(gradient_x * gradient_x + gradient_y * gradient_y)
-                if length > 0:
-                    gradient_x /= length
-                    gradient_y /= length
-                
-                # Mise à jour de la direction
-                dir_x = (dir_x * self.inertia - gradient_x * (1 - self.inertia))
-                dir_y = (dir_y * self.inertia - gradient_y * (1 - self.inertia))
-                
+            if slope_magnitude > 0:
                 # Normalisation de la direction
-                length = cp.sqrt(dir_x * dir_x + dir_y * dir_y)
-                if length > 0:
-                    dir_x /= length
-                    dir_y /= length
+                dir_x = -slope_x / slope_magnitude
+                dir_y = -slope_y / slope_magnitude
                 
-                # Nouvelle position
-                pos_x += dir_x
-                pos_y += dir_y
+                # Vitesse du flux (proportionnelle à la pente et à l'eau)
+                velocity = slope_magnitude * new_water[i, j] * gravity
                 
-                # Vérification des limites
-                if pos_x < 0 or pos_x >= map_size_minus_one or pos_y < 0 or pos_y >= map_size_minus_one:
-                    break
+                # Capacité de transport de sédiments
+                capacity = sed_capacity * velocity * slope_magnitude
                 
-                # Nouvelle hauteur
-                new_height = (height_nw * (1 - cell_offset_x) * (1 - cell_offset_y) +
-                             height_ne * cell_offset_x * (1 - cell_offset_y) +
-                             height_sw * (1 - cell_offset_x) * cell_offset_y +
-                             height_se * cell_offset_x * cell_offset_y)
-                
-                # Calcul de la différence de hauteur
-                height_diff = new_height - height
-                
-                # Calcul de la capacité de transport
-                slope = max(self.min_slope, cp.sqrt(gradient_x * gradient_x + gradient_y * gradient_y))
-                sediment_capacity = max(0.01, -height_diff) * speed * water * self.sediment_capacity_factor
-                
-                # Transport de sédiments
-                if sediment > sediment_capacity or height_diff > 0:
-                    # Dépôt
-                    amount_to_deposit = (sediment - sediment_capacity) * self.deposition_speed if height_diff > 0 else self.deposition_speed
-                    amount_to_deposit = min(amount_to_deposit, sediment)
-                    
-                    sediment -= amount_to_deposit
-                    
-                    # Application du dépôt (interpolation bilinéaire inverse)
-                    heightmap_gpu[node_y, node_x] += amount_to_deposit * (1 - cell_offset_x) * (1 - cell_offset_y)
-                    heightmap_gpu[node_y, min(node_x + 1, map_size_minus_one)] += amount_to_deposit * cell_offset_x * (1 - cell_offset_y)
-                    heightmap_gpu[min(node_y + 1, map_size_minus_one), node_x] += amount_to_deposit * (1 - cell_offset_x) * cell_offset_y
-                    heightmap_gpu[min(node_y + 1, map_size_minus_one), 
-                                 min(node_x + 1, map_size_minus_one)] += amount_to_deposit * cell_offset_x * cell_offset_y
-                else:
+                # Érosion/dépôt
+                if new_sediment[i, j] < capacity:
                     # Érosion
-                    amount_to_erode = min((sediment_capacity - sediment) * self.erosion_speed, -height_diff)
-                    
-                    # Application de l'érosion (interpolation bilinéaire inverse)
-                    heightmap_gpu[node_y, node_x] -= amount_to_erode * (1 - cell_offset_x) * (1 - cell_offset_y)
-                    heightmap_gpu[node_y, min(node_x + 1, map_size_minus_one)] -= amount_to_erode * cell_offset_x * (1 - cell_offset_y)
-                    heightmap_gpu[min(node_y + 1, map_size_minus_one), node_x] -= amount_to_erode * (1 - cell_offset_x) * cell_offset_y
-                    heightmap_gpu[min(node_y + 1, map_size_minus_one), 
-                                 min(node_x + 1, map_size_minus_one)] -= amount_to_erode * cell_offset_x * cell_offset_y
-                    
-                    sediment += amount_to_erode
+                    erosion = min(
+                        (capacity - new_sediment[i, j]) * dissolve_rate,
+                        new_heightmap[i, j] - 0.0  # Éviter les hauteurs négatives
+                    )
+                    new_heightmap[i, j] -= erosion
+                    new_sediment[i, j] += erosion
+                else:
+                    # Dépôt
+                    deposit = (new_sediment[i, j] - capacity) * deposit_rate
+                    new_heightmap[i, j] += deposit
+                    new_sediment[i, j] -= deposit
                 
-                # Mise à jour de la vitesse et de l'eau
-                speed = cp.sqrt(speed * speed + height_diff * self.gravity)
-                water *= (1 - self.evaporation_speed)
-            
-            # Mise à jour de la progression
-            if i % 1000 == 0:
-                progress.update_progress(i / self.iterations, f"Itération {i}/{self.iterations}")
-        
-        # Finalisation
-        progress.complete_stage(ProgressStage.EROSION)
-        
-        # Transfert vers CPU
-        result = cp.asnumpy(heightmap_gpu)
-        
-        elapsed_time = time.time() - start_time
-        logger.info(f"Érosion GPU terminée en {elapsed_time:.2f}s")
-        
-        return result
+                # Transport de sédiments vers les cellules voisines
+                if abs(dir_x) > abs(dir_y):
+                    # Flux principal en X
+                    target_j = j + int(np.sign(dir_x))
+                    if 0 < target_j < W:
+                        transfer = new_sediment[i, j] * 0.1
+                        new_sediment[i, j] -= transfer
+                        new_sediment[i, target_j] += transfer
+                else:
+                    # Flux principal en Y
+                    target_i = i + int(np.sign(dir_y))
+                    if 0 < target_i < H:
+                        transfer = new_sediment[i, j] * 0.1
+                        new_sediment[i, j] -= transfer
+                        new_sediment[target_i, j] += transfer
     
-    def _erode_cpu(self, heightmap: np.ndarray, 
-                   progress_callback: Optional[callable] = None) -> np.ndarray:
-        """Version CPU de l'érosion (fallback)."""
-        logger.info("Utilisation de la version CPU de l'érosion")
+    # Évaporation
+    new_water *= (1.0 - evap_rate)
+    
+    return new_heightmap, new_water, new_sediment
+
+
+@njit(parallel=True)
+def _thermal_erosion_step(
+    heightmap: np.ndarray,
+    thermal_angle: float,
+    thermal_rate: float
+) -> np.ndarray:
+    """
+    Effectue une étape d'érosion thermique (glissement de terrain).
+    
+    Parameters
+    ----------
+    heightmap : np.ndarray
+        Heightmap actuelle
+    thermal_angle : float
+        Angle critique en degrés
+    thermal_rate : float
+        Taux d'érosion thermique
         
-        # Initialisation du générateur aléatoire CPU
-        self.rng = np.random.RandomState(self.seed)
-        
-        # Copie de la heightmap
-        heightmap_cpu = heightmap.copy().astype(np.float32)
-        
-        # Paramètres
-        map_size = heightmap_cpu.shape[0]
-        map_size_minus_one = map_size - 1
-        
-        # Initialisation du tracker de progression
-        progress = get_progress_tracker()
-        progress.start_stage(ProgressStage.EROSION, self.iterations)
-        
-        logger.info(f"Début érosion CPU: {self.iterations} itérations sur {map_size}x{map_size}")
-        start_time = time.time()
-        
-        # Variables de debug
-        total_erosion = 0.0
-        total_deposition = 0.0
-        
-        # Boucle principale d'érosion
-        for i in range(self.iterations):
-            # Génération position aléatoire
-            pos_x = self.rng.uniform(0, map_size_minus_one)
-            pos_y = self.rng.uniform(0, map_size_minus_one)
+    Returns
+    -------
+    np.ndarray
+        Nouvelle heightmap après érosion thermique
+    """
+    H, W = heightmap.shape
+    new_heightmap = heightmap.copy()
+    critical_slope = np.tan(np.radians(thermal_angle))
+    
+    for i in prange(1, H-1):
+        for j in range(1, W-1):
+            # Calcul de la pente maximale vers les voisins
+            max_slope = 0.0
+            for di in [-1, 0, 1]:
+                for dj in [-1, 0, 1]:
+                    if di == 0 and dj == 0:
+                        continue
+                    
+                    ni, nj = i + di, j + dj
+                    if 0 <= ni < H and 0 <= nj < W:
+                        slope = (heightmap[i, j] - heightmap[ni, nj]) / np.sqrt(di**2 + dj**2)
+                        max_slope = max(max_slope, slope)
             
-            # Direction initiale aléatoire
-            dir_x = 0
-            dir_y = 0
-            
-            # État de la goutte
-            speed = 1.0
-            water = 1.0
-            sediment = 0.0
-            
-            # Simulation du chemin de la goutte
-            while water > 0.01 and speed > 0.01:
-                # Coordonnées entières
-                node_x = int(pos_x)
-                node_y = int(pos_y)
+            # Si la pente dépasse l'angle critique, glissement
+            if max_slope > critical_slope:
+                # Trouver le voisin le plus bas
+                min_height = heightmap[i, j]
+                min_ni, min_nj = i, j
                 
-                # Coordonnées décimales dans la cellule
-                cell_offset_x = pos_x - node_x
-                cell_offset_y = pos_y - node_y
-                
-                # Calcul de la hauteur et du gradient
-                height_nw = heightmap_cpu[node_y, node_x]
-                height_ne = heightmap_cpu[node_y, min(node_x + 1, map_size_minus_one)]
-                height_sw = heightmap_cpu[min(node_y + 1, map_size_minus_one), node_x]
-                height_se = heightmap_cpu[min(node_y + 1, map_size_minus_one), 
-                                        min(node_x + 1, map_size_minus_one)]
-                
-                # Interpolation bilinéaire pour la hauteur
-                height = (height_nw * (1 - cell_offset_x) * (1 - cell_offset_y) +
-                         height_ne * cell_offset_x * (1 - cell_offset_y) +
-                         height_sw * (1 - cell_offset_x) * cell_offset_y +
-                         height_se * cell_offset_x * cell_offset_y)
-                
-                # Calcul du gradient
-                gradient_x = (height_ne - height_nw) * (1 - cell_offset_y) + (height_se - height_sw) * cell_offset_y
-                gradient_y = (height_sw - height_nw) * (1 - cell_offset_x) + (height_se - height_ne) * cell_offset_x
-                
-                # Normalisation du gradient
-                gradient_length = np.sqrt(gradient_x * gradient_x + gradient_y * gradient_y)
-                if gradient_length > 0:
-                    gradient_x /= gradient_length
-                    gradient_y /= gradient_length
-                
-                # Mise à jour de la direction
-                dir_x = (dir_x * self.inertia - gradient_x * (1 - self.inertia))
-                dir_y = (dir_y * self.inertia - gradient_y * (1 - self.inertia))
-                
-                # Normalisation de la direction
-                length = np.sqrt(dir_x * dir_x + dir_y * dir_y)
-                if length > 0:
-                    dir_x /= length
-                    dir_y /= length
-                
-                # Nouvelle position
-                pos_x += dir_x
-                pos_y += dir_y
-                
-                # Vérification des limites
-                if pos_x < 0 or pos_x >= map_size_minus_one or pos_y < 0 or pos_y >= map_size_minus_one:
-                    break
-                
-                # Nouvelle hauteur
-                new_height = (height_nw * (1 - cell_offset_x) * (1 - cell_offset_y) +
-                             height_ne * cell_offset_x * (1 - cell_offset_y) +
-                             height_sw * (1 - cell_offset_x) * cell_offset_y +
-                             height_se * cell_offset_x * cell_offset_y)
-                
-                # Calcul de la différence de hauteur
-                height_diff = new_height - height
-                
-                # Calcul de la capacité de transport
-                slope = max(self.min_slope, gradient_length)  # Utiliser la magnitude du gradient brut
-                sediment_capacity = max(0.01, -height_diff) * speed * water * self.sediment_capacity_factor
-                
-                # Transport de sédiments
-                if sediment > sediment_capacity or height_diff > 0:
-                    # Dépôt
-                    if height_diff > 0:
-                        # En montée : déposer l'excès de sédiment seulement
-                        amount_to_deposit = max(0, (sediment - sediment_capacity) * self.deposition_speed)
-                    else:
-                        # Conditions normales : déposer selon deposition_speed
-                        amount_to_deposit = sediment * self.deposition_speed
-                    
-                    # S'assurer qu'on ne dépose pas plus que ce qu'on a
-                    amount_to_deposit = max(0, min(amount_to_deposit, sediment))
-                    
-                    sediment -= amount_to_deposit
-                    
-                    # Application du dépôt (interpolation bilinéaire inverse)
-                    heightmap_cpu[node_y, node_x] += amount_to_deposit * (1 - cell_offset_x) * (1 - cell_offset_y)
-                    heightmap_cpu[node_y, min(node_x + 1, map_size_minus_one)] += amount_to_deposit * cell_offset_x * (1 - cell_offset_y)
-                    heightmap_cpu[min(node_y + 1, map_size_minus_one), node_x] += amount_to_deposit * (1 - cell_offset_x) * cell_offset_y
-                    heightmap_cpu[min(node_y + 1, map_size_minus_one), 
-                                 min(node_x + 1, map_size_minus_one)] += amount_to_deposit * cell_offset_x * cell_offset_y
-                    total_deposition += amount_to_deposit
-                else:
-                    # Érosion
-                    amount_to_erode = min((sediment_capacity - sediment) * self.erosion_speed, -height_diff)
-                    amount_to_erode = max(0, amount_to_erode)  # S'assurer que l'érosion est positive
-                    
-                    if amount_to_erode > 0:
-                        # Application de l'érosion (interpolation bilinéaire inverse)
-                        heightmap_cpu[node_y, node_x] -= amount_to_erode * (1 - cell_offset_x) * (1 - cell_offset_y)
-                        heightmap_cpu[node_y, min(node_x + 1, map_size_minus_one)] -= amount_to_erode * cell_offset_x * (1 - cell_offset_y)
-                        heightmap_cpu[min(node_y + 1, map_size_minus_one), node_x] -= amount_to_erode * (1 - cell_offset_x) * cell_offset_y
-                        heightmap_cpu[min(node_y + 1, map_size_minus_one), 
-                                     min(node_x + 1, map_size_minus_one)] -= amount_to_erode * cell_offset_x * cell_offset_y
+                for di in [-1, 0, 1]:
+                    for dj in [-1, 0, 1]:
+                        if di == 0 and dj == 0:
+                            continue
                         
-                        sediment += amount_to_erode
-                        total_erosion += amount_to_erode
+                        ni, nj = i + di, j + dj
+                        if 0 <= ni < H and 0 <= nj < W:
+                            if heightmap[ni, nj] < min_height:
+                                min_height = heightmap[ni, nj]
+                                min_ni, min_nj = ni, nj
                 
-                # Mise à jour de la vitesse et de l'eau
-                speed = np.sqrt(speed * speed + height_diff * self.gravity)
-                water *= (1 - self.evaporation_speed)
-            
-            # Mise à jour de la progression
-            if i % 1000 == 0:
-                progress.update_progress(i / self.iterations, f"Itération {i}/{self.iterations}")
-        
-        # Finalisation
-        progress.complete_stage(ProgressStage.EROSION)
-        
-        elapsed_time = time.time() - start_time
-        logger.info(f"Érosion CPU terminée en {elapsed_time:.2f}s")
-        logger.info(f"Total érosion appliquée: {total_erosion:.6f}")
-        logger.info(f"Total dépôt appliqué: {total_deposition:.6f}")
-        
-        return heightmap_cpu
-
-
-class ErosionPipeline:
-    """
-    Pipeline complet d'érosion avec paramètres prédéfinis.
-    """
+                # Transfert de matière
+                if min_ni != i or min_nj != j:
+                    transfer = (heightmap[i, j] - min_height) * thermal_rate * 0.5
+                    new_heightmap[i, j] -= transfer
+                    new_heightmap[min_ni, min_nj] += transfer
     
-    @staticmethod
-    def light_erosion(heightmap: np.ndarray, 
-                     progress_callback: Optional[callable] = None) -> np.ndarray:
-        """Érosion légère pour terrains doux."""
-        eroder = HydraulicErosion(
-            iterations=10000,
-            erosion_radius=2.0,
-            inertia=0.05,
-            sediment_capacity_factor=3.0,
-            min_slope=0.01,
-            gravity=3.0,
-            evaporation_speed=0.01,
-            deposition_speed=0.1,
-            erosion_speed=0.2
+    return new_heightmap
+
+
+def erosion(
+    heightmap: np.ndarray, 
+    n_iters: int, 
+    params: Dict[str, float]
+) -> Tuple[np.ndarray, Dict[str, float]]:
+    """
+    Applique l'érosion hydraulique et thermique à une heightmap.
+    
+    Parameters
+    ----------
+    heightmap : np.ndarray
+        Heightmap d'entrée de forme (H, W) en mètres
+    n_iters : int
+        Nombre d'itérations de simulation (≥ 1)
+    params : Dict[str, float]
+        Paramètres de simulation :
+        - rain_rate: Taux de pluie en mm par itération
+        - evap_rate: Taux d'évaporation (0-1)
+        - sed_capacity: Capacité de transport de sédiments en kg/m³
+        - dissolve_rate: Taux de dissolution (0-1)
+        - deposit_rate: Taux de dépôt (0-1)
+        - thermal_angle: Angle critique en degrés
+        - thermal_rate: Taux d'érosion thermique (0-1)
+        - gravity: Accélération gravitationnelle (défaut: 9.81)
+        - seed: Graine pour reproductibilité (optionnel)
+        
+    Returns
+    -------
+    Tuple[np.ndarray, Dict[str, float]]
+        Heightmap érodée et métriques de simulation
+        
+    Raises
+    ------
+    ValueError
+        Si les paramètres sont invalides
+    """
+    # Validation des paramètres
+    if n_iters < 1:
+        raise ValueError("n_iters doit être ≥ 1")
+    
+    if heightmap.ndim != 2:
+        raise ValueError("heightmap doit être 2D")
+    
+    # Paramètres par défaut
+    default_params = {
+        "rain_rate": 0.01,
+        "evap_rate": 0.1,
+        "sed_capacity": 1.0,
+        "dissolve_rate": 0.1,
+        "deposit_rate": 0.1,
+        "thermal_angle": 30.0,
+        "thermal_rate": 0.1,
+        "gravity": 9.81,
+        "seed": None
+    }
+    
+    # Fusion avec les paramètres par défaut
+    for key, default_value in default_params.items():
+        if key not in params:
+            params[key] = default_value
+    
+    # Initialisation du générateur aléatoire si seed fourni
+    if params["seed"] is not None:
+        np.random.seed(params["seed"])
+    
+    H, W = heightmap.shape
+    result = heightmap.copy().astype(np.float32)
+    
+    # Initialisation des cartes d'eau et de sédiments
+    water = np.zeros((H, W), dtype=np.float32)
+    sediment = np.zeros((H, W), dtype=np.float32)
+    
+    # Métriques de suivi
+    initial_volume = np.sum(result)
+    initial_mass = initial_volume + np.sum(sediment)
+    
+    start_time = time.time()
+    
+    # Boucle principale de simulation
+    for iteration in range(n_iters):
+        # Érosion hydraulique
+        result, water, sediment = _hydraulic_erosion_step(
+            result, water, sediment,
+            params["rain_rate"], params["evap_rate"],
+            params["sed_capacity"], params["dissolve_rate"],
+            params["deposit_rate"], params["gravity"]
         )
-        return eroder.erode(heightmap, progress_callback)
-    
-    @staticmethod
-    def medium_erosion(heightmap: np.ndarray, 
-                      progress_callback: Optional[callable] = None) -> np.ndarray:
-        """Érosion moyenne pour terrains équilibrés."""
-        eroder = HydraulicErosion(
-            iterations=30000,
-            erosion_radius=3.0,
-            inertia=0.05,
-            sediment_capacity_factor=4.0,
-            min_slope=0.01,
-            gravity=4.0,
-            evaporation_speed=0.01,
-            deposition_speed=0.1,
-            erosion_speed=0.3
-        )
-        return eroder.erode(heightmap, progress_callback)
-    
-    @staticmethod
-    def heavy_erosion(heightmap: np.ndarray, 
-                     progress_callback: Optional[callable] = None) -> np.ndarray:
-        """Érosion forte pour terrains montagneux."""
-        eroder = HydraulicErosion(
-            iterations=50000,
-            erosion_radius=4.0,
-            inertia=0.05,
-            sediment_capacity_factor=5.0,
-            min_slope=0.01,
-            gravity=5.0,
-            evaporation_speed=0.01,
-            deposition_speed=0.1,
-            erosion_speed=0.4
-        )
-        return eroder.erode(heightmap, progress_callback)
-
-
-def erode_heightmap(heightmap: np.ndarray, 
-                   intensity: str = "medium",
-                   progress_callback: Optional[callable] = None) -> np.ndarray:
-    """
-    Fonction utilitaire pour éroder une heightmap.
-    
-    Args:
-        heightmap: Heightmap d'entrée
-        intensity: "light", "medium", ou "heavy"
-        progress_callback: Callback pour le suivi de progression
         
-    Returns:
-        Heightmap érodée
+        # Érosion thermique
+        result = _thermal_erosion_step(
+            result, params["thermal_angle"], params["thermal_rate"]
+        )
+    
+    end_time = time.time()
+    
+    # Calcul des métriques finales
+    final_volume = np.sum(result)
+    final_mass = final_volume + np.sum(sediment)
+    
+    # Conservation de masse
+    mass_conservation = abs(final_mass - initial_mass) / initial_mass * 100
+    
+    # Volume transporté
+    volume_transported = abs(final_volume - initial_volume)
+    
+    # Perte numérique (devrait être proche de 0)
+    numerical_loss = abs(final_mass - initial_mass)
+    
+    metrics = {
+        "volume_transported": float(volume_transported),
+        "mass_conservation_percent": float(mass_conservation),
+        "numerical_loss": float(numerical_loss),
+        "cpu_time_seconds": float(end_time - start_time),
+        "iterations": n_iters,
+        "grid_size": f"{H}x{W}"
+    }
+    
+    return result, metrics
+
+
+def demo() -> None:
     """
-    if intensity == "light":
-        return ErosionPipeline.light_erosion(heightmap, progress_callback)
-    elif intensity == "medium":
-        return ErosionPipeline.medium_erosion(heightmap, progress_callback)
-    elif intensity == "heavy":
-        return ErosionPipeline.heavy_erosion(heightmap, progress_callback)
-    else:
-        raise ValueError(f"Intensité inconnue: {intensity}. Utilisez 'light', 'medium', ou 'heavy'")
+    Démonstration de l'algorithme d'érosion avec visualisation.
+    """
+    try:
+        import matplotlib.pyplot as plt
+        from matplotlib.animation import FuncAnimation
+    except ImportError:
+        print("matplotlib requis pour la démonstration")
+        return
+    
+    # Génération d'un terrain de test
+    H, W = 128, 128
+    x = np.linspace(-2, 2, W)
+    y = np.linspace(-2, 2, H)
+    X, Y = np.meshgrid(x, y)
+    
+    # Terrain initial avec montagnes et vallées
+    heightmap = (
+        0.5 * np.exp(-(X**2 + Y**2) / 0.5) +  # Montagne centrale
+        0.3 * np.exp(-((X-1)**2 + (Y-1)**2) / 0.3) +  # Montagne secondaire
+        0.2 * np.exp(-((X+1)**2 + (Y+1)**2) / 0.4) +  # Montagne tertiaire
+        0.1 * np.random.rand(H, W)  # Bruit
+    )
+    
+    # Paramètres d'érosion
+    params = {
+        "rain_rate": 0.02,
+        "evap_rate": 0.15,
+        "sed_capacity": 2.0,
+        "dissolve_rate": 0.2,
+        "deposit_rate": 0.2,
+        "thermal_angle": 25.0,
+        "thermal_rate": 0.15,
+        "gravity": 9.81,
+        "seed": 42
+    }
+    
+    # Application de l'érosion
+    print("Application de l'érosion...")
+    eroded_heightmap, metrics = erosion(heightmap, n_iters=50, params=params)
+    
+    # Affichage des résultats
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    
+    # Terrain initial
+    im1 = axes[0].imshow(heightmap, cmap='terrain')
+    axes[0].set_title('Terrain Initial')
+    axes[0].axis('off')
+    plt.colorbar(im1, ax=axes[0])
+    
+    # Terrain érodé
+    im2 = axes[1].imshow(eroded_heightmap, cmap='terrain')
+    axes[1].set_title('Terrain Érodé')
+    axes[1].axis('off')
+    plt.colorbar(im2, ax=axes[1])
+    
+    # Différence
+    diff = eroded_heightmap - heightmap
+    im3 = axes[2].imshow(diff, cmap='RdBu_r', vmin=-0.1, vmax=0.1)
+    axes[2].set_title('Différence (Érodé - Initial)')
+    axes[2].axis('off')
+    plt.colorbar(im3, ax=axes[2])
+    
+    plt.tight_layout()
+    
+    # Affichage des métriques
+    print("\nMétriques de simulation:")
+    for key, value in metrics.items():
+        print(f"  {key}: {value}")
+    
+    plt.show()
 
 
 if __name__ == "__main__":
-    # Test simple
-    from .heightmap import HeightMapGenerator
-    
-    generator = HeightMapGenerator(size=256, seed=42)
-    heightmap = generator.generate()
-    
-    print("Génération terminée, début érosion...")
-    eroded = erode_heightmap(heightmap, "medium")
-    print("Érosion terminée!")
-    
-    # Sauvegarde
-    generator.save_png(eroded, "output/eroded_heightmap.png")
-    print("Sauvegardé dans output/eroded_heightmap.png")
+    demo()

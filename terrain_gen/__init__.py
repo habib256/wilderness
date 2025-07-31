@@ -3,7 +3,7 @@ Module de génération procédurale de terrain.
 
 Contient:
 - heightmap.py : Génération Diamond-Square + Perlin fBm  
-- erosion.py : Érosion hydraulique GPU
+- erosion.py : Érosion hydraulique et thermique optimisée
 - progress.py : Système de suivi de progression
 """
 
@@ -20,7 +20,7 @@ warnings.filterwarnings("ignore",
                        category=RuntimeWarning)
 
 from .heightmap import HeightMapGenerator, DiamondSquare, PerlinFBm
-from .erosion import HydraulicErosion, ErosionPipeline, erode_heightmap
+from .erosion import erosion, demo
 from .real_terrain_extractor import (
     ReunionTerrainExtractor, OpenTopographyAPI, OpenElevationAPI,
     TerrainBounds, ReunionTerrainBounds
@@ -35,9 +35,8 @@ __all__ = [
     "HeightMapGenerator", 
     "DiamondSquare", 
     "PerlinFBm",
-    "HydraulicErosion",
-    "ErosionPipeline", 
-    "erode_heightmap",
+    "erosion",
+    "demo",
     "ReunionTerrainExtractor",
     "OpenTopographyAPI",
     "OpenElevationAPI",

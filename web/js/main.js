@@ -284,21 +284,19 @@ document.addEventListener('visibilitychange', () => {
  * Informations de version
  */
 console.log(`
-🏔️ Wilderness Terrain Viewer 3D v1.0
+🏔️ Wilderness Terrain Viewer 3D v1.1
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🎮 Contrôles:
    • Clic gauche + drag: Rotation caméra
    • Molette: Zoom
    • Clic droit + drag: Pan
    • R: Reset caméra
-   • 1-5: Sélection terrain
-   • W: Toggle wireframe  
-   • C: Cycle modes couleur
+   • H: Aide
 
 🏗️ Architecture:
    • Three.js r128 pour le rendu 3D
-   • Canvas API pour traitement heightmaps
-   • Web Workers pour calculs (si supporté)
+   • Interface minimale avec menu déroulant
+   • Vue 3D libérée et optimisée
    
 🧬 Générateur procédural:
    • Diamond-Square + Perlin fBm

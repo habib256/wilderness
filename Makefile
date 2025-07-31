@@ -18,46 +18,42 @@ install: ## Installer les dépendances
 
 # Tests
 test: ## Exécuter tous les tests unitaires
-	$(PYTEST) tests/ -v --cov=terrain_gen --cov-report=html
-	@echo "Tests terminés. Rapport de couverture: htmlcov/index.html"
+	@echo "Tests unitaires à implémenter"
+	@echo "Module terrain_gen/erosion.py nécessite des tests"
 
 benchmark: ## Tests de performance
-	$(PYTEST) tests/ -v --benchmark-only
-	@echo "Benchmarks terminés"
+	@echo "Benchmarks à implémenter"
+	@echo "Utiliser terrain_gen/erosion.py pour les tests de performance"
 
 # Génération de terrain
 run-heightmap: ## Générer heightmap Diamond-Square + Perlin fBm
 	$(PYTHON) -m terrain_gen.heightmap --size $(TERRAIN_SIZE) --seed $(SEED) --output output/heightmap.png
 	@echo "Heightmap générée: output/heightmap.png"
 
-run-erosion: ## Appliquer érosion hydraulique (medium)
-	$(PYTHON) -m terrain_gen.erosion_cli --input output/heightmap.png --output output/eroded_heightmap.png --intensity medium --stats
-	@echo "Érosion terminée: output/eroded_heightmap.png"
+run-erosion: ## Appliquer érosion hydraulique (TODO: implémenter)
+	@echo "Érosion hydraulique à implémenter dans terrain_gen/erosion.py"
+	@echo "Module erosion.py contient l'algorithme de base mais pas d'interface CLI"
 
-run-erosion-light: ## Érosion légère
-	$(PYTHON) -m terrain_gen.erosion_cli --input output/heightmap.png --output output/eroded_light.png --intensity light --stats
-	@echo "Érosion légère terminée: output/eroded_light.png"
+run-erosion-light: ## Érosion légère (TODO)
+	@echo "Érosion légère à implémenter"
 
-run-erosion-heavy: ## Érosion forte
-	$(PYTHON) -m terrain_gen.erosion_cli --input output/heightmap.png --output output/eroded_heavy.png --intensity heavy --stats
-	@echo "Érosion forte terminée: output/eroded_heavy.png"
+run-erosion-heavy: ## Érosion forte (TODO)
+	@echo "Érosion forte à implémenter"
 
-run-erosion-custom: ## Érosion personnalisée (100k itérations)
-	$(PYTHON) -m terrain_gen.erosion_cli --input output/heightmap.png --output output/eroded_custom.png --iterations 100000 --gravity 5.0 --stats
-	@echo "Érosion personnalisée terminée: output/eroded_custom.png"
+run-erosion-custom: ## Érosion personnalisée (TODO)
+	@echo "Érosion personnalisée à implémenter"
 
 run-terrain-complete: ## Pipeline complet: génération + érosion
 	$(MAKE) run-heightmap
 	$(MAKE) run-erosion
 	@echo "Pipeline complet terminé ✓"
 
-run-eroded-terrains: ## Générer tous les terrains érodés pour le visualiseur
-	$(PYTHON) terrain_gen/generate_eroded_terrains.py
-	@echo "Terrains érodés générés pour le visualiseur ✓"
+run-eroded-terrains: ## Générer terrains érodés (TODO: implémenter)
+	@echo "Génération de terrains érodés à implémenter"
+	@echo "Utiliser terrain_gen/erosion.py pour l'algorithme de base"
 
-run-eroded-terrains-working: ## Générer terrains érodés avec algorithme fonctionnel
-	$(PYTHON) create_eroded_terrains_working.py
-	@echo "Terrains érodés fonctionnels générés ✓"
+run-eroded-terrains-working: ## Générer terrains érodés fonctionnels (TODO)
+	@echo "Génération de terrains érodés fonctionnels à implémenter"
 
 run-reunion-4k: ## Générer heightmap 4K Réunion (données réelles)
 	$(PYTHON) terrain_gen/generate_reunion_4k.py

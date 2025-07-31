@@ -19,65 +19,26 @@
         <!-- Rendu 3D -->
         <canvas id="canvas3d" style="display: block; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1;"></canvas>
         
-        <!-- Interface utilisateur -->
+        <!-- Interface utilisateur minimale -->
         <div class="ui-panel">
-
-            
-            <!-- Sélecteur de terrain -->
+            <!-- Sélecteur de terrain simplifié -->
             <div class="terrain-selector">
-                <h3>Terrain</h3>
-                <div class="terrain-buttons">
-                    <button class="terrain-btn" data-terrain="montagneux">
-                        ⛰️ Montagneux
-                    </button>
-                    <button class="terrain-btn" data-terrain="vallonne">
-                        🌊 Vallonné
-                    </button>
-                    <button class="terrain-btn" data-terrain="archipel">
-                        🏝️ Archipel
-                    </button>
-                    <button class="terrain-btn active" data-terrain="heightmap">
-                        🗻 Standard
-                    </button>
-                    <button class="terrain-btn real-terrain" data-terrain="reunion">
-                        🏝️ Réunion
-                    </button>
-                    <button class="terrain-btn real-terrain" data-terrain="honshu_kanto">
-                        🗾 Honshu Kanto
-                    </button>
-                    <button class="terrain-btn" data-terrain="eroded_light">
-                        🌊 Érodé Léger
-                    </button>
-                    <button class="terrain-btn" data-terrain="eroded_medium">
-                        💧 Érodé Moyen
-                    </button>
-                    <button class="terrain-btn" data-terrain="eroded_heavy">
-                        ⛰️ Érodé Fort
-                    </button>
-                    <button class="terrain-btn" data-terrain="eroded_medium_default">
-                        💧 Érodé (Défaut)
-                    </button>
-                </div>
+                <label for="terrainSelect">Terrain:</label>
+                <select id="terrainSelect" class="terrain-dropdown">
+                    <option value="montagneux">⛰️ Montagneux</option>
+                    <option value="vallonne">🌊 Vallonné</option>
+                    <option value="archipel">🏝️ Archipel</option>
+                    <option value="heightmap" selected>🗻 Standard</option>
+                    <option value="reunion">🏝️ Réunion</option>
+                    <option value="honshu_kanto">🗾 Honshu Kanto</option>
+                </select>
             </div>
 
-            <!-- Statistiques en temps réel -->
+            <!-- Statistiques essentielles -->
             <div class="stats-panel">
-                <h3>Statistiques</h3>
                 <div class="stat-row">
-                    <span class="stat-label">Taille:</span>
-                    <span id="stat-size">-</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Altitude min:</span>
-                    <span id="stat-min">-</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Altitude max:</span>
-                    <span id="stat-max">-</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Moyenne:</span>
-                    <span id="stat-mean">-</span>
+                    <span class="stat-label">Alt:</span>
+                    <span id="stat-min">-</span> / <span id="stat-max">-</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">Rugosité:</span>
@@ -85,53 +46,14 @@
                 </div>
             </div>
 
-            <!-- Contrôles de rendu -->
+            <!-- Contrôle principal -->
             <div class="render-controls">
-                <h3>Rendu</h3>
-                
                 <div class="control-row">
-                    <label for="heightScale">Échelle altitude:</label>
+                    <label for="heightScale">Échelle:</label>
                     <input type="range" id="heightScale" min="0" max="30" step="1" value="20">
                     <span id="heightScaleValue">20</span>
                 </div>
-                
-                <div class="control-row">
-                    <label for="sunPosition">Position soleil:</label>
-                    <input type="range" id="sunPosition" min="45" max="315" step="5" value="180">
-                    <span id="sunPositionValue">Zénith (Midi)</span>
-                </div>
-                
-                <div class="control-row">
-                    <label for="shadowQuality">Qualité ombres:</label>
-                    <select id="shadowQuality">
-                        <option value="low">Faible (1K)</option>
-                        <option value="medium" selected>Moyenne (4K)</option>
-                        <option value="high">Haute (8K)</option>
-                        <option value="ultra">Ultra (16K)</option>
-                    </select>
-                </div>
-                
-                <!-- Bouton de génération de depth map -->
-                <div class="control-row">
-                    <button id="generateDepthMap" class="depth-map-btn">
-                        📊 Générer Depth Map
-                    </button>
-                </div>
-                
-                <!-- Affichage de la depth map -->
-                <div id="depthMapPreview" class="depth-map-preview" style="display: none;">
-                    <h4>Depth Map Générée</h4>
-                    <canvas id="depthMapCanvas" width="256" height="256"></canvas>
-                    <div class="depth-map-actions">
-                        <button id="downloadDepthMap" class="download-btn">💾 Télécharger</button>
-                        <button id="closeDepthMap" class="close-btn">✕ Fermer</button>
-                    </div>
-                </div>
-
-
             </div>
-
-
         </div>
     </div>
 

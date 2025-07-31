@@ -110,6 +110,15 @@ class TerrainLoader {
                 isEroded: true,
                 erosionType: 'heavy'
             },
+            'eroded_extreme': {
+                name: 'Érodé Extrême',
+                emoji: '🏔️',
+                path: 'images/eroded_extreme.png',
+                description: 'Terrain standard avec érosion hydraulique extrême (100k itérations)',
+                expectedSize: 2048,
+                isEroded: true,
+                erosionType: 'extreme'
+            },
             'eroded_medium_default': {
                 name: 'Érodé (Défaut)',
                 emoji: '💧',

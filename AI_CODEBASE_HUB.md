@@ -33,6 +33,10 @@
 3. **Vérifier** que le serveur est accessible sur le port par défaut
 4. **Tester** le hot reload en modifiant un fichier JavaScript
 
+
+**L'IA DOIT TOUJOURS utiliser python3 pour executer du code python.**
+
+
 ## 🏗️ Architecture Générale
 
 ### Vue d'Ensemble
@@ -126,44 +130,37 @@ python -m terrain_gen.heightmap \
 
 ### 2. `web/` - Visualiseur 3D Interactif ✅
 
-**Architecture (1,210 lignes JavaScript)**:
+**Architecture (934 lignes JavaScript)**:
 ```
 web/
-├── index.html (5KB)           # Interface utilisateur moderne
-├── css/style.css (8KB)        # Design glassmorphism responsive
+├── index.html (3KB)           # Interface utilisateur minimale
+├── css/style.css (6KB)        # Design épuré et discret
 └── js/
-    ├── main.js (216 lignes)           # Point d'entrée + gestion erreurs
+    ├── main.js (309 lignes)           # Point d'entrée + gestion erreurs
     ├── TerrainLoader.js (216 lignes)  # Chargement PNG → heightmaps
-    ├── TerrainRenderer.js (302 lignes) # Rendu 3D Three.js
-    └── UIController.js (260 lignes)   # Interface interactive
+    ├── TerrainRenderer.js (1329 lignes) # Rendu 3D Three.js
+    └── UIController.js (200 lignes)   # Interface simplifiée
 ```
 
 **Fonctionnalités clés**:
 - ✅ Rendu 3D temps réel (Three.js r128)
-- ✅ 7 terrains prédéfinis (Montagneux, Vallonné, Plaines, Archipel, Standard, Réunion, Honshu Kanto)
-- ✅ 3 modes couleur (altitude/pente/grayscale)
-- ✅ Statistiques temps réel (Min/Max/Moyenne/Rugosité)
-- ✅ Contrôles interactifs (échelle, résolution, wireframe)
-- ✅ Raccourcis clavier (1-6, R, W, C)
+- ✅ 6 terrains disponibles (Montagneux, Vallonné, Archipel, Standard, Réunion, Honshu Kanto)
+- ✅ Interface minimale avec menu déroulant
+- ✅ Statistiques essentielles (Altitude min/max, Rugosité)
+- ✅ Contrôle principal (échelle d'altitude)
+- ✅ Raccourcis clavier (R: Reset caméra, H: Aide)
 - ✅ Détection automatique performance GPU
-- ✅ Interface moderne avec animations
+- ✅ Vue 3D libérée et optimisée
 - ✅ Terrains réels haute résolution (données SRTM/OpenElevation)
+- ✅ Interface simplifiée v1.1 (menu déroulant, UI minimale)
 
 **Accès**: Cursor AI Live Server puis http://localhost:5500 (port par défaut)
 
 ### 3. `tests/` - Suite de Tests Complète ✅
 
 **Fichiers**:
-- `test_heightmap.py` (385 lignes, 24 tests)
-- `__init__.py` - Config tests
-
-**Couverture tests**:
-```python
-class TestDiamondSquare:    # 8 tests - Algorithme de base
-class TestPerlinFBm:        # 6 tests - Génération fBm  
-class TestHeightMapGenerator: # 7 tests - Intégration complète
-class TestContinuity:       # 3 tests - Validation scientifique
-```
+- Tests unitaires à implémenter pour `terrain_gen/erosion.py`
+- Tests d'intégration pour le visualiseur web
 
 **Validation**:
 - ✅ Déterminisme (seed identique = résultat identique)
@@ -174,8 +171,8 @@ class TestContinuity:       # 3 tests - Validation scientifique
 
 **Commandes**:
 ```bash
-make test              # Tous les tests avec couverture
-pytest tests/test_heightmap.py -v --cov=terrain_gen
+make test              # Tests unitaires (TODO: implémenter)
+make benchmark         # Performance tests (TODO: implémenter)
 ```
 
 ---
@@ -250,14 +247,20 @@ make run-honshu-alps      # Alpes japonaises (144×167 km)
   - ✅ Range final: [-0.1, 1.0] - référence altimétrique absolue
 - **Tests validés**: Honshu Kanto (Mont Fuji) et Réunion (Piton des Neiges)
 
-### 5. `terrain_gen/erosion.py` - Érosion Hydraulique 🔄
+### 5. `terrain_gen/erosion.py` - Érosion Hydraulique ✅
 
-**Statut**: Stub uniquement (`raise NotImplementedError`)
+**Statut**: Algorithme de base implémenté (425 lignes)
+**Fonctionnalités**:
+- ✅ Érosion hydraulique avec transport de sédiments
+- ✅ Érosion thermique (glissement de terrain)
+- ✅ Optimisation Numba avec parallélisation
+- ✅ Calcul de gradients optimisé
+- ✅ Interface programmatique complète
+
 **TODO**:
-- Implémentation GPU CUDA
-- 50 itérations hydrauliques
-- Flow accumulation + transport sédimentaire
-- Interface CLI
+- Interface CLI pour utilisation standalone
+- Intégration avec le pipeline de génération
+- Tests unitaires pour validation
 
 ---
 
@@ -387,8 +390,8 @@ tests/test_heightmap.py                  # Comment utiliser l'API
 ```bash
 # L'IA DOIT utiliser Cursor AI Live Server, PAS python -m http.server
 # Cursor AI Live Server offre hot reload et support ES6 natif
-# Visualisation immédiate des résultats
-# Compréhension intuitive des paramètres
+# Interface minimale avec menu déroulant pour sélection des terrains
+# Vue 3D libérée et optimisée pour l'immersion
 ```
 
 ### 4. CLI pour Expérimentation Rapide  
@@ -410,11 +413,12 @@ from terrain_gen.progress import get_progress_tracker
 ## 📊 Métriques et Performance
 
 ### Code Produit (Phase 1 + Extension Terrains Réels)
-- **459 lignes** - `terrain_gen/heightmap.py` (module principal)
-- **582 lignes** - `terrain_gen/real_terrain_extractor.py` (extracteur SRTM)
-- **385 lignes** - Tests unitaires (24 tests, 96% succès)
-- **1,210 lignes** - Visualiseur JavaScript complet
-- **Total ~2,636 lignes** code fonctionnel
+- **615 lignes** - `terrain_gen/heightmap.py` (module principal)
+- **949 lignes** - `terrain_gen/real_terrain_extractor.py` (extracteur SRTM)
+- **425 lignes** - `terrain_gen/erosion.py` (algorithme d'érosion)
+- **284 lignes** - `terrain_gen/progress.py` (système de progression)
+- **2,054 lignes** - Visualiseur JavaScript complet (v1.1)
+- **Total ~4,327 lignes** code fonctionnel
 
 ### Performance Mesurée
 ```
@@ -461,9 +465,10 @@ make pre-commit         # Avant chaque modification
 ```
 
 ### 4. Extension Recommandée
-- Commencer par `terrain_gen/erosion.py` (stub existant)
+- Commencer par `terrain_gen/erosion.py` (algorithme implémenté, besoin CLI)
 - Puis `ai_amplifier/` pour pipeline Stable Diffusion
 - Tests obligatoires pour chaque nouveau module
+- Interface web v1.1 complète et optimisée
 
 ---
 

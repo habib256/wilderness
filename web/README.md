@@ -24,12 +24,12 @@ Visualiseur 3D interactif pour les heightmaps générées par le système Wilder
 
 ### Lancement
 ```bash
-# Depuis le dossier web/
+# Utiliser Cursor AI Live Server (recommandé)
+# Accès: http://localhost:5500
+
+# Ou serveur Python simple
+cd web/
 python3 -m http.server 8000
-
-# Ou avec Node.js
-npx http-server -p 8000
-
 # Puis ouvrir: http://localhost:8000
 ```
 

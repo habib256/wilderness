@@ -5,7 +5,7 @@ class UIController {
     constructor(terrainLoader, terrainRenderer) {
         this.terrainLoader = terrainLoader;
         this.terrainRenderer = terrainRenderer;
-        this.currentTerrainName = 'montagneux';
+        this.currentTerrainName = 'heightmap';
 
         this.initUI();
     }
@@ -23,24 +23,22 @@ class UIController {
     }
 
     /**
-     * Initialise le sélecteur de terrain
+     * Initialise le sélecteur de terrain (menu déroulant)
      */
     initTerrainSelector() {
-        const terrainButtons = document.querySelectorAll('.terrain-btn');
+        const terrainSelect = document.getElementById('terrainSelect');
         
-        terrainButtons.forEach(button => {
-            button.addEventListener('click', async (event) => {
-                const terrainName = event.target.dataset.terrain;
-                
-                if (terrainName && terrainName !== this.currentTerrainName) {
-                    await this.switchTerrain(terrainName);
-                }
-            });
+        terrainSelect.addEventListener('change', async (event) => {
+            const terrainName = event.target.value;
+            
+            if (terrainName && terrainName !== this.currentTerrainName) {
+                await this.switchTerrain(terrainName);
+            }
         });
     }
 
     /**
-     * Initialise les contrôles de rendu
+     * Initialise les contrôles de rendu simplifiés
      */
     initRenderControls() {
         // Échelle de hauteur
@@ -58,179 +56,14 @@ class UIController {
                 heightScale: value
             });
         });
-
-        // Position du soleil
-        const sunPositionSlider = document.getElementById('sunPosition');
-        const sunPositionValue = document.getElementById('sunPositionValue');
-        
-        sunPositionSlider.value = 180;
-        sunPositionValue.textContent = this.getSunDirectionText(180);
-        
-        sunPositionSlider.addEventListener('input', (event) => {
-            const angle = parseInt(event.target.value);
-            sunPositionValue.textContent = this.getSunDirectionText(angle);
-            
-            this.terrainRenderer.updateSettings({
-                sunPosition: angle
-            });
-        });
-
-        // Qualité des ombres
-        const shadowQualitySelect = document.getElementById('shadowQuality');
-        shadowQualitySelect.addEventListener('change', (event) => {
-            const quality = event.target.value;
-            
-            this.terrainRenderer.updateSettings({
-                shadowQuality: quality
-            });
-            
-            console.log(`🌫️ Qualité des ombres: ${quality}`);
-        });
-
-        // Gestion de la génération de depth map
-        this.initDepthMapControls();
-
-    }
-
-    /**
-     * Initialise les contrôles de génération de depth map
-     */
-    initDepthMapControls() {
-        const generateBtn = document.getElementById('generateDepthMap');
-        const downloadBtn = document.getElementById('downloadDepthMap');
-        const closeBtn = document.getElementById('closeDepthMap');
-        const previewDiv = document.getElementById('depthMapPreview');
-        const canvas = document.getElementById('depthMapCanvas');
-
-        // Bouton de génération
-        generateBtn.addEventListener('click', async () => {
-            try {
-                generateBtn.disabled = true;
-                generateBtn.textContent = '⏳ Génération...';
-                
-                console.log('📊 Début de génération de depth map...');
-                
-                // Génère la depth map
-                const depthMapResult = this.terrainRenderer.generateDepthMap(512, 512);
-                
-                if (depthMapResult) {
-                    // Affiche la preview
-                    this.displayDepthMapPreview(depthMapResult);
-                    console.log('✅ Depth map générée avec succès');
-                } else {
-                    console.error('❌ Échec de la génération de depth map');
-                    alert('Erreur lors de la génération de la depth map');
-                }
-                
-            } catch (error) {
-                console.error('❌ Erreur lors de la génération:', error);
-                alert('Erreur lors de la génération de la depth map');
-            } finally {
-                generateBtn.disabled = false;
-                generateBtn.textContent = '📊 Générer Depth Map';
-            }
-        });
-
-        // Bouton de téléchargement
-        downloadBtn.addEventListener('click', () => {
-            this.downloadDepthMap();
-        });
-
-        // Bouton de fermeture
-        closeBtn.addEventListener('click', () => {
-            previewDiv.style.display = 'none';
-        });
-    }
-
-    /**
-     * Affiche la preview de la depth map
-     * @param {Object} depthMapResult - Résultat de la génération
-     */
-    displayDepthMapPreview(depthMapResult) {
-        const previewDiv = document.getElementById('depthMapPreview');
-        const canvas = document.getElementById('depthMapCanvas');
-        const ctx = canvas.getContext('2d');
-
-        // Configure la taille du canvas de preview
-        canvas.width = 256;
-        canvas.height = 256;
-
-        // Dessine l'image de la depth map
-        ctx.putImageData(depthMapResult.depthImage, 0, 0);
-
-        // Affiche la preview
-        previewDiv.style.display = 'block';
-
-        // Stocke les données pour le téléchargement
-        this.currentDepthMapData = depthMapResult;
-
-        console.log(`📊 Preview affichée: ${depthMapResult.width}x${depthMapResult.height}`);
-    }
-
-    /**
-     * Télécharge la depth map
-     */
-    downloadDepthMap() {
-        if (!this.currentDepthMapData) {
-            console.error('❌ Aucune depth map à télécharger');
-            return;
-        }
-
-        try {
-            // Crée un canvas temporaire pour l'export
-            const canvas = document.createElement('canvas');
-            canvas.width = this.currentDepthMapData.width;
-            canvas.height = this.currentDepthMapData.height;
-            const ctx = canvas.getContext('2d');
-
-            // Dessine l'image complète
-            ctx.putImageData(this.currentDepthMapData.depthImage, 0, 0);
-
-            // Crée le lien de téléchargement
-            const link = document.createElement('a');
-            link.download = `depth_map_${Date.now()}.png`;
-            link.href = canvas.toDataURL('image/png');
-
-            // Déclenche le téléchargement
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            console.log('💾 Depth map téléchargée');
-
-        } catch (error) {
-            console.error('❌ Erreur lors du téléchargement:', error);
-            alert('Erreur lors du téléchargement de la depth map');
-        }
-    }
-
-    /**
-     * Convertit un angle en description textuelle de moment de la journée
-     * @param {number} angle - Angle en degrés (45-315, de l'aube au crépuscule)
-     * @returns {string} Description du moment solaire
-     */
-    getSunDirectionText(angle) {
-        // Plage limitée de l'aube au crépuscule (45°-315°)
-        let timeText = '';
-        if (angle >= 45 && angle < 75) timeText = 'Aube';
-        else if (angle >= 75 && angle < 105) timeText = 'Lever (Est)';
-        else if (angle >= 105 && angle < 135) timeText = 'Matinée';
-        else if (angle >= 135 && angle < 165) timeText = 'Fin matinée';
-        else if (angle >= 165 && angle < 195) timeText = 'Zénith (Midi)';
-        else if (angle >= 195 && angle < 225) timeText = 'Début après-midi';
-        else if (angle >= 225 && angle < 255) timeText = 'Après-midi';
-        else if (angle >= 255 && angle < 285) timeText = 'Coucher (Ouest)';
-        else if (angle >= 285 && angle <= 315) timeText = 'Crépuscule';
-        else timeText = 'Zénith (Midi)'; // Valeur par défaut
-        
-        return timeText;
     }
 
     /**
      * Initialise l'affichage des statistiques
      */
     initStatsDisplay() {
-        // Les statistiques seront mises à jour lors du changement de terrain
+        // Les statistiques seront mises à jour automatiquement
+        console.log('📊 Affichage des statistiques initialisé');
     }
 
     /**
@@ -238,72 +71,60 @@ class UIController {
      */
     async switchTerrain(terrainName) {
         try {
-            // Affiche le loading
+            console.log(`🔄 Changement vers le terrain: ${terrainName}`);
+            
             this.showLoading();
-
-            // Désactive le bouton actuel
-            this.setActiveTerrainButton(terrainName);
-
-            // Charge le terrain
-            console.log(`🔄 Changement vers terrain: ${terrainName}`);
+            
+            // Charge le nouveau terrain
             const terrainData = await this.terrainLoader.loadTerrain(terrainName);
-
-            // Affiche le terrain en 3D
-            this.terrainRenderer.displayTerrain(terrainData);
-            this.terrainRenderer.currentTerrainData = terrainData;
-
-            // Met à jour l'interface
-            this.updateStats(terrainData);
-            this.currentTerrainName = terrainName;
-
-            // Cache le loading
-            this.hideLoading();
-
-            console.log(`✅ Terrain ${terrainName} chargé et affiché`);
-
+            
+            if (terrainData) {
+                // Met à jour le rendu
+                this.terrainRenderer.displayTerrain(terrainData);
+                
+                // Met à jour les statistiques
+                this.updateStats(terrainData);
+                
+                // Met à jour le terrain actuel
+                this.currentTerrainName = terrainName;
+                
+                console.log(`✅ Terrain ${terrainName} chargé avec succès`);
+            } else {
+                console.error(`❌ Impossible de charger le terrain: ${terrainName}`);
+                this.showError(`Terrain ${terrainName} non trouvé`);
+            }
+            
         } catch (error) {
-            console.error(`❌ Erreur changement terrain ${terrainName}:`, error);
-            this.showError(`Erreur lors du chargement du terrain: ${error.message}`);
+            console.error('❌ Erreur lors du changement de terrain:', error);
+            this.showError('Erreur lors du chargement du terrain');
+        } finally {
             this.hideLoading();
         }
     }
 
     /**
-     * Met à jour l'affichage des statistiques
+     * Met à jour les statistiques affichées
      */
     updateStats(terrainData) {
-        const { stats } = terrainData;
-
-        document.getElementById('stat-size').textContent = stats.size;
-        document.getElementById('stat-min').textContent = stats.min.toFixed(4);
-        document.getElementById('stat-max').textContent = stats.max.toFixed(4);
-        document.getElementById('stat-mean').textContent = stats.mean.toFixed(4);
-        document.getElementById('stat-roughness').textContent = stats.roughness.toFixed(4);
-    }
-
-    /**
-     * Met à jour le bouton actif dans le sélecteur
-     */
-    setActiveTerrainButton(terrainName) {
-        // Désactive tous les boutons
-        document.querySelectorAll('.terrain-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-
-        // Active le bouton sélectionné
-        const activeButton = document.querySelector(`[data-terrain="${terrainName}"]`);
-        if (activeButton) {
-            activeButton.classList.add('active');
-        }
+        const { min, max, roughness } = terrainData.stats;
+        
+        // Met à jour les éléments d'interface
+        const minElement = document.getElementById('stat-min');
+        const maxElement = document.getElementById('stat-max');
+        const roughnessElement = document.getElementById('stat-roughness');
+        
+        if (minElement) minElement.textContent = min.toFixed(3);
+        if (maxElement) maxElement.textContent = max.toFixed(3);
+        if (roughnessElement) roughnessElement.textContent = roughness.toFixed(4);
     }
 
     /**
      * Affiche l'écran de chargement
      */
     showLoading() {
-        const loadingDiv = document.getElementById('loading');
-        if (loadingDiv) {
-            loadingDiv.classList.remove('hidden');
+        const loading = document.getElementById('loading');
+        if (loading) {
+            loading.classList.remove('hidden');
         }
     }
 
@@ -311,9 +132,9 @@ class UIController {
      * Cache l'écran de chargement
      */
     hideLoading() {
-        const loadingDiv = document.getElementById('loading');
-        if (loadingDiv) {
-            loadingDiv.classList.add('hidden');
+        const loading = document.getElementById('loading');
+        if (loading) {
+            loading.classList.add('hidden');
         }
     }
 
@@ -321,8 +142,9 @@ class UIController {
      * Affiche une erreur
      */
     showError(message) {
-        // Simple alert pour le moment - pourrait être amélioré avec une modal
-        alert(`❌ ${message}`);
+        console.error('❌ Erreur:', message);
+        // Pour l'instant, on affiche juste dans la console
+        // On pourrait ajouter une notification visuelle plus tard
     }
 
     /**
@@ -331,118 +153,64 @@ class UIController {
     async loadInitialTerrain() {
         try {
             console.log('🚀 Chargement du terrain initial...');
-            await this.switchTerrain(this.currentTerrainName);
-        } catch (error) {
-            console.error('❌ Erreur chargement initial:', error);
-            this.showError('Impossible de charger le terrain initial');
-        }
-    }
-
-    /**
-     * Précharge tous les terrains en arrière-plan
-     */
-    async preloadTerrains() {
-        try {
-            console.log('📦 Préchargement des terrains en arrière-plan...');
             
-            // Lance le préchargement sans attendre
-            setTimeout(async () => {
-                try {
-                    await this.terrainLoader.preloadAllTerrains();
-                    console.log('✅ Préchargement terminé');
-                } catch (error) {
-                    console.warn('⚠️ Erreur préchargement:', error);
-                }
-            }, 100);
-
+            const terrainData = await this.terrainLoader.loadTerrain(this.currentTerrainName);
+            
+            if (terrainData) {
+                this.terrainRenderer.displayTerrain(terrainData);
+                this.updateStats(terrainData);
+                console.log('✅ Terrain initial chargé');
+            }
+            
         } catch (error) {
-            console.warn('⚠️ Erreur lancement préchargement:', error);
+            console.error('❌ Erreur lors du chargement initial:', error);
         }
     }
 
     /**
-     * Met à jour les contrôles en temps réel
-     */
-    updateControls() {
-        // Synchronise les valeurs affichées avec les paramètres actuels
-        const { settings } = this.terrainRenderer;
-
-        document.getElementById('heightScale').value = settings.heightScale;
-        document.getElementById('heightScaleValue').textContent = settings.heightScale.toFixed(1);
-        
-        // Synchronise la position du soleil
-        const sunPosition = settings.sunPosition || 180;
-        document.getElementById('sunPosition').value = sunPosition;
-        document.getElementById('sunPositionValue').textContent = this.getSunDirectionText(sunPosition);
-        
-        const colorModeSelect = document.getElementById('colorMode');
-        if (colorModeSelect) {
-            colorModeSelect.value = settings.colorMode || 'height';
-        }
-    }
-
-
-
-    /**
-     * Gestion des raccourcis clavier globaux
+     * Initialise les raccourcis clavier
      */
     initKeyboardShortcuts() {
         document.addEventListener('keydown', (event) => {
-            // Évite les conflits avec les contrôles de la caméra
-            if (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT') {
-                return;
-            }
-
-            switch (event.code) {
-                case 'Digit1':
-                    this.switchTerrain('montagneux');
-                    break;
-                case 'Digit2':
-                    this.switchTerrain('vallonne');
-                    break;
-                case 'Digit3':
-                    this.switchTerrain('archipel');
-                    break;
-                case 'Digit4':
-                    this.switchTerrain('heightmap');
-                    break;
-                case 'Digit5':
-                    this.switchTerrain('reunion');
-                    break;
-                case 'Digit6':
-                    this.switchTerrain('honshu_kanto');
-                    break;
-                case 'KeyR':
-                    // Reset camera
+            switch (event.key) {
+                case 'r':
+                case 'R':
+                    // Reset de la caméra
                     this.terrainRenderer.resetCamera();
-                    console.log('📷 Caméra resetée via touche R');
+                    console.log('🔄 Caméra réinitialisée');
                     break;
-                case 'KeyW':
-                    // Toggle wireframe
-                    const wireframeCheckbox = document.getElementById('wireframe');
-                    if (wireframeCheckbox) {
-                        wireframeCheckbox.checked = !wireframeCheckbox.checked;
-                        wireframeCheckbox.dispatchEvent(new Event('change'));
-                    }
-                    break;
-                case 'KeyC':
-                    // Cycle color modes
-                    const colorModeSelect = document.getElementById('colorMode');
-                    if (colorModeSelect) {
-                        const options = colorModeSelect.options;
-                        const currentIndex = colorModeSelect.selectedIndex;
-                        const nextIndex = (currentIndex + 1) % options.length;
-                        colorModeSelect.selectedIndex = nextIndex;
-                        colorModeSelect.dispatchEvent(new Event('change'));
-                    }
+                    
+                case 'h':
+                case 'H':
+                    // Aide
+                    this.showHelp();
                     break;
             }
         });
-
-        console.log('⌨️ Raccourcis clavier initialisés');
+        
+        console.log('⌨️ Raccourcis clavier initialisés (R: Reset caméra, H: Aide)');
     }
 
+    /**
+     * Affiche l'aide
+     */
+    showHelp() {
+        console.log(`
+🎮 Wilderness Terrain Viewer - Aide
+====================================
+Contrôles souris:
+- Clic gauche + drag: Rotation caméra
+- Molette: Zoom in/out
+- Clic droit + drag: Pan
 
+Raccourcis clavier:
+- R: Reset position caméra
+- H: Afficher cette aide
 
-
+Interface:
+- Menu déroulant: Sélection du terrain
+- Slider: Échelle d'altitude
+- Statistiques: Altitude min/max et rugosité
+        `);
+    }
 } 

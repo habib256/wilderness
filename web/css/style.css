@@ -31,239 +31,164 @@ body {
     display: block;
 }
 
-/* Interface utilisateur - panneau flottant à droite */
+/* Interface utilisateur - panneau minimal en haut à droite */
 .ui-panel {
     position: absolute;
-    top: 20px;
-    right: 20px;
-    width: 300px;
-    max-height: calc(100vh - 40px);
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(10px);
-    border-radius: 15px;
-    padding: 20px;
-    z-index: 10;
-    overflow-y: auto;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.ui-panel h1 {
-    font-size: 1.2em;
-    margin-bottom: 20px;
-    text-align: center;
-    color: #4CAF50;
-}
-
-.ui-panel h3 {
-    font-size: 1em;
-    margin: 15px 0 10px 0;
-    color: #81C784;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    padding-bottom: 5px;
-}
-
-/* Sélecteur de terrain */
-.terrain-selector {
-    margin-bottom: 20px;
-}
-
-.terrain-buttons {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-}
-
-.terrain-btn {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
-    padding: 8px 12px;
+    top: 10px;
+    right: 10px;
+    width: 200px;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
     border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
+    padding: 12px;
+    z-index: 10;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.85em;
+}
+
+/* Sélecteur de terrain simplifié */
+.terrain-selector {
+    margin-bottom: 12px;
+}
+
+.terrain-selector label {
+    display: block;
+    margin-bottom: 4px;
+    color: #81C784;
     font-size: 0.9em;
 }
 
-.terrain-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: translateY(-2px);
+.terrain-dropdown {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 6px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    cursor: pointer;
 }
 
-.terrain-btn.active {
-    background: rgba(76, 175, 80, 0.6);
+.terrain-dropdown:focus {
+    outline: none;
     border-color: #4CAF50;
-    box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+    box-shadow: 0 0 5px rgba(76, 175, 80, 0.3);
 }
 
-/* Statistiques */
+.terrain-dropdown option {
+    background: #2a2a2a;
+    color: white;
+}
+
+/* Statistiques compactes */
 .stats-panel {
-    margin-bottom: 20px;
+    margin-bottom: 12px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
 }
 
 .stat-row {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 5px;
-    font-size: 0.9em;
+    align-items: center;
+    margin-bottom: 4px;
+    font-size: 0.8em;
+}
+
+.stat-row:last-child {
+    margin-bottom: 0;
 }
 
 .stat-label {
-    color: #B0BEC5;
+    color: #BDBDBD;
+    font-weight: 500;
 }
 
-/* Contrôles de rendu */
+/* Contrôles de rendu simplifiés */
 .render-controls {
-    margin-bottom: 20px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
 }
 
 .control-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 10px;
-    font-size: 0.9em;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.control-row:last-child {
+    margin-bottom: 0;
 }
 
 .control-row label {
-    color: #B0BEC5;
-    flex: 1;
+    color: #BDBDBD;
+    font-size: 0.8em;
+    min-width: 40px;
 }
 
 .control-row input[type="range"] {
-    flex: 2;
-    margin: 0 10px;
-}
-
-.control-row input[type="checkbox"] {
-    margin-left: auto;
-}
-
-.control-row select {
     flex: 1;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
-    padding: 4px;
-    border-radius: 4px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+}
+
+.control-row input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #4CAF50;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.control-row input[type="range"]::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    background: #4CAF50;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
 }
 
 .control-row span {
-    min-width: 40px;
-    text-align: right;
-    color: #4CAF50;
-    font-weight: bold;
-}
-
-/* Bouton de génération de depth map */
-.depth-map-btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border: none;
     color: white;
-    padding: 10px 15px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: 0.9em;
-    width: 100%;
-    margin-top: 10px;
-}
-
-.depth-map-btn:hover {
-    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-}
-
-.depth-map-btn:active {
-    transform: translateY(0);
-}
-
-/* Preview de la depth map */
-.depth-map-preview {
-    margin-top: 15px;
-    padding: 15px;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.depth-map-preview h4 {
-    margin-bottom: 10px;
-    color: #81C784;
-    font-size: 0.9em;
-}
-
-#depthMapCanvas {
-    width: 100%;
-    height: auto;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: #000;
-    margin-bottom: 10px;
-}
-
-.depth-map-actions {
-    display: flex;
-    gap: 8px;
-}
-
-.download-btn, .close-btn {
-    flex: 1;
-    padding: 8px 12px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
     font-size: 0.8em;
-    transition: all 0.3s ease;
+    min-width: 20px;
+    text-align: right;
 }
-
-.download-btn {
-    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-    color: white;
-}
-
-.download-btn:hover {
-    background: linear-gradient(135deg, #45a049 0%, #4CAF50 100%);
-    transform: translateY(-1px);
-}
-
-.close-btn {
-    background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
-    color: white;
-}
-
-.close-btn:hover {
-    background: linear-gradient(135deg, #d32f2f 0%, #f44336 100%);
-    transform: translateY(-1px);
-}
-
-
 
 /* Écran de chargement */
 .loading {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     z-index: 1000;
-    color: white;
+    transition: opacity 0.3s ease;
 }
 
 .loading.hidden {
-    display: none;
+    opacity: 0;
+    pointer-events: none;
 }
 
 .loading-spinner {
     width: 50px;
     height: 50px;
-    border: 4px solid rgba(255, 255, 255, 0.3);
-    border-top: 4px solid #4CAF50;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top: 3px solid #4CAF50;
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin-bottom: 20px;
@@ -275,25 +200,24 @@ body {
 }
 
 .loading p {
-    font-size: 1.2em;
-    margin-top: 10px;
+    color: white;
+    font-size: 1.1em;
 }
 
-/* Responsive */
+/* Responsive design */
 @media (max-width: 768px) {
     .ui-panel {
-        width: calc(100vw - 40px);
-        right: 20px;
-        left: 20px;
-        max-height: 50vh;
+        width: 180px;
+        padding: 10px;
+        font-size: 0.8em;
     }
     
-    .terrain-buttons {
-        grid-template-columns: 1fr;
+    .terrain-dropdown {
+        font-size: 0.8em;
     }
 }
 
-/* Scrollbar customization */
+/* Scrollbar personnalisée */
 .ui-panel::-webkit-scrollbar {
     width: 6px;
 }
@@ -304,12 +228,12 @@ body {
 }
 
 .ui-panel::-webkit-scrollbar-thumb {
-    background: rgba(78, 205, 196, 0.5);
+    background: rgba(255, 255, 255, 0.3);
     border-radius: 3px;
 }
 
 .ui-panel::-webkit-scrollbar-thumb:hover {
-    background: rgba(78, 205, 196, 0.7);
+    background: rgba(255, 255, 255, 0.5);
 } 
 
  
